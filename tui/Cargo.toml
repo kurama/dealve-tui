@@ -1,0 +1,19 @@
+[package]
+name = "dealve-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "dealve"
+path = "src/main.rs"
+
+[dependencies]
+dealve-core = { path = "../core" }
+dealve-api = { path = "../api" }
+tokio = { version = "1.42", features = ["full"] }
+ratatui = "0.29"
+crossterm = "0.28"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
