@@ -1,5 +1,6 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect, Alignment},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Frame,
@@ -77,7 +78,11 @@ pub fn render(frame: &mut Frame, app: &App) {
                     Span::raw(format!("{:<13}", low_info)),
                 ]);
 
-                ListItem::new(content)
+                let mut item = ListItem::new(content);
+                if is_selected {
+                    item = item.style(Style::default().bg(Color::DarkGray));
+                }
+                item
             })
             .collect();
 
@@ -86,7 +91,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         frame.render_widget(deals_list, chunks[1]);
     }
 
-    let help = Paragraph::new("[↑/↓] Navigate  [r] Refresh  [q] Quit")
+    let help = Paragraph::new("[↑/↓] Navigate  [Enter] Open  [r] Refresh  [q] Quit")
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(help, chunks[2]);

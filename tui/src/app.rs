@@ -58,4 +58,10 @@ impl App {
             }
         }
     }
+
+    pub fn open_selected_deal(&self) {
+        if let Some(deal) = self.deals.get(self.selected_index) {
+            let _ = webbrowser::open(&deal.url);
+        }
+    }
 }
