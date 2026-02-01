@@ -302,12 +302,6 @@ fn build_status_line(app: &App, dimmed: bool) -> Line<'static> {
     spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
     spans.push(Span::styled("efresh", Style::default().fg(text_color)));
 
-    // Load more (only show if more deals available)
-    if app.has_more_deals && !app.loading && !app.loading_more {
-        spans.push(Span::styled("└┘", Style::default().fg(border_color)));
-        spans.push(Span::styled("m", Style::default().fg(shortcut_color)));
-        spans.push(Span::styled("ore", Style::default().fg(text_color)));
-    }
 
     // Last element closing bracket
     spans.push(Span::styled("└", Style::default().fg(border_color)));
@@ -773,7 +767,6 @@ fn render_advanced_tab(frame: &mut Frame, app: &App, area: Rect) {
     // Settings list
     let settings = [
         ("Page Size", format!("{}", app.options.deals_page_size), "Deals loaded per batch"),
-        ("Load Threshold", format!("{}", app.options.load_more_threshold), "Items from end to trigger load"),
         ("Info Delay", format!("{}ms", app.options.game_info_delay_ms), "Debounce for game info"),
     ];
 

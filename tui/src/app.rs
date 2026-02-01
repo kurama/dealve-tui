@@ -99,7 +99,6 @@ pub struct OptionsState {
     pub region: Region,
     // Advanced settings
     pub deals_page_size: usize,
-    pub load_more_threshold: usize,
     pub game_info_delay_ms: u64,
 }
 
@@ -119,7 +118,6 @@ impl Default for OptionsState {
             enabled_platforms: enabled,
             region: Region::default(),
             deals_page_size: 50,
-            load_more_threshold: 10,
             game_info_delay_ms: 200,
         }
     }
@@ -148,7 +146,6 @@ impl OptionsState {
             enabled_platforms,
             region,
             deals_page_size: config.deals_page_size,
-            load_more_threshold: config.load_more_threshold,
             game_info_delay_ms: config.game_info_delay_ms,
         }
     }
@@ -158,7 +155,6 @@ impl OptionsState {
         let mut config = Config::load();
         config.update_from_options(self.default_platform, &self.enabled_platforms, self.region);
         config.deals_page_size = self.deals_page_size;
-        config.load_more_threshold = self.load_more_threshold;
         config.game_info_delay_ms = self.game_info_delay_ms;
         let _ = config.save(); // Ignore errors silently
     }
@@ -193,7 +189,6 @@ pub struct App {
     pub loading_more: bool,
     // Configurable parameters
     pub deals_page_size: usize,
-    pub load_more_threshold: usize,
     pub game_info_delay_ms: u64,
     // Filter state
     pub filter_active: bool,
@@ -237,7 +232,6 @@ impl App {
             has_more_deals: true,
             loading_more: false,
             deals_page_size: config.deals_page_size,
-            load_more_threshold: config.load_more_threshold,
             game_info_delay_ms: config.game_info_delay_ms,
             filter_active: false,
             filter_text: String::new(),
@@ -438,20 +432,8 @@ impl App {
 
     /// Check if we're near the end of the list and should load more
     pub fn should_load_more(&self) -> bool {
-        if !self.has_more_deals || self.loading || self.loading_more {
-            return false;
-        }
-        let filtered = self.filtered_deals();
-        let total = filtered.len();
-        if total == 0 {
-            return false;
-        }
-        if let Some(selected) = self.list_state.selected() {
-            // Load more when within threshold items of the end
-            selected >= total.saturating_sub(self.load_more_threshold)
-        } else {
-            false
-        }
+        // Always load more in background if available (transparent loading)
+        !self.loading && !self.loading_more && self.has_more_deals
     }
 
     pub fn tick_spinner(&mut self) {
@@ -624,16 +606,6 @@ impl App {
                         self.deals_page_size = self.options.deals_page_size;
                     }
                     1 => {
-                        // Load threshold: cycle through 5, 10, 15, 20
-                        self.options.load_more_threshold = match self.options.load_more_threshold {
-                            5 => 10,
-                            10 => 15,
-                            15 => 20,
-                            _ => 5,
-                        };
-                        self.load_more_threshold = self.options.load_more_threshold;
-                    }
-                    2 => {
                         // Game info delay: cycle through 100, 200, 300, 500
                         self.options.game_info_delay_ms = match self.options.game_info_delay_ms {
                             100 => 200,

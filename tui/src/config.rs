@@ -14,9 +14,6 @@ pub struct Config {
     /// Number of deals to load per page (pagination batch size)
     #[serde(default = "default_page_size")]
     pub deals_page_size: usize,
-    /// Number of items from end of list to trigger loading more deals
-    #[serde(default = "default_load_threshold")]
-    pub load_more_threshold: usize,
     /// Debounce delay (ms) before loading game info after selection change
     #[serde(default = "default_game_info_delay")]
     pub game_info_delay_ms: u64,
@@ -30,10 +27,6 @@ fn default_page_size() -> usize {
     50
 }
 
-fn default_load_threshold() -> usize {
-    10
-}
-
 fn default_game_info_delay() -> u64 {
     200
 }
@@ -45,7 +38,6 @@ impl Default for Config {
             enabled_platforms: Platform::ALL.iter().map(|p| p.name().to_string()).collect(),
             region: default_region(),
             deals_page_size: default_page_size(),
-            load_more_threshold: default_load_threshold(),
             game_info_delay_ms: default_game_info_delay(),
         }
     }
