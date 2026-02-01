@@ -122,7 +122,20 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
         if event::poll(std::time::Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    if app.popup == Popup::Options {
+                    if app.popup == Popup::Platform {
+                        match key.code {
+                            KeyCode::Esc => app.close_popup(),
+                            KeyCode::Down | KeyCode::Char('j') => app.platform_popup_next(),
+                            KeyCode::Up | KeyCode::Char('k') => app.platform_popup_prev(),
+                            KeyCode::Enter => {
+                                let needs_reload = app.platform_popup_select();
+                                if needs_reload {
+                                    pending_deals_load = true;
+                                }
+                            }
+                            _ => {}
+                        }
+                    } else if app.popup == Popup::Options {
                         match key.code {
                             KeyCode::Esc => app.close_popup(),
                             KeyCode::Tab | KeyCode::Right => app.options_next_tab(),
@@ -152,18 +165,6 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                             }
                             _ => {}
                         }
-                    } else if app.show_platform_dropdown {
-                        match key.code {
-                            KeyCode::Esc | KeyCode::Char('p') => app.toggle_dropdown(),
-                            KeyCode::Down | KeyCode::Char('j') => app.dropdown_next(),
-                            KeyCode::Up | KeyCode::Char('k') => app.dropdown_previous(),
-                            KeyCode::Enter => {
-                                // Set loading state, close dropdown, then trigger load
-                                app.dropdown_select_prepare();
-                                pending_deals_load = true;
-                            }
-                            _ => {}
-                        }
                     } else {
                         match key.code {
                             KeyCode::Esc => app.toggle_menu(),
@@ -177,12 +178,18 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                                 last_selection_change = std::time::Instant::now();
                                 pending_game_info_load = true;
                             }
-                            KeyCode::Char('p') => app.toggle_dropdown(),
+                            KeyCode::Char('p') => {
+                                app.open_platform_popup();
+                            }
                             KeyCode::Enter => app.open_selected_deal(),
                             KeyCode::Char('r') => {
-                                // Set loading state, then trigger load
                                 app.set_loading(true);
                                 pending_deals_load = true;
+                            }
+                            KeyCode::Char('s') => {
+                                app.cycle_sort_order();
+                                last_selection_change = std::time::Instant::now();
+                                pending_game_info_load = true;
                             }
                             _ => {}
                         }

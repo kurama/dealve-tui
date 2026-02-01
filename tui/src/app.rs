@@ -36,6 +36,33 @@ pub enum Popup {
     None,
     Options,
     Keybinds,
+    Platform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortOrder {
+    #[default]
+    None,       // Default API order
+    PriceAsc,   // Cheapest first
+    PriceDesc,  // Most expensive first
+}
+
+impl SortOrder {
+    pub fn next(&self) -> Self {
+        match self {
+            SortOrder::None => SortOrder::PriceAsc,
+            SortOrder::PriceAsc => SortOrder::PriceDesc,
+            SortOrder::PriceDesc => SortOrder::None,
+        }
+    }
+
+    pub fn label(&self) -> Option<&str> {
+        match self {
+            SortOrder::None => None,
+            SortOrder::PriceAsc => Some("Price ↑"),
+            SortOrder::PriceDesc => Some("Price ↓"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,8 +156,6 @@ pub struct App {
     pub error: Option<String>,
     pub platform_filter: Platform,
     pub region: Region,
-    pub show_platform_dropdown: bool,
-    pub dropdown_selected: usize,
     // Game info cache and loading state
     pub game_info_cache: HashMap<String, GameInfo>,
     pub loading_game_info: Option<String>,
@@ -138,6 +163,10 @@ pub struct App {
     pub options: OptionsState,
     // Animation frame counter for spinner
     pub spinner_frame: usize,
+    // Sort order for deals
+    pub sort_order: SortOrder,
+    // Platform popup selection
+    pub platform_popup_index: usize,
     client: ItadClient,
 }
 
@@ -164,12 +193,12 @@ impl App {
             error: None,
             platform_filter,
             region,
-            show_platform_dropdown: false,
-            dropdown_selected: 0,
             game_info_cache: HashMap::new(),
             loading_game_info: None,
             options,
             spinner_frame: 0,
+            sort_order: SortOrder::default(),
+            platform_popup_index: 0,
             client: ItadClient::new(api_key),
         }
     }
@@ -222,53 +251,82 @@ impl App {
     }
 
     pub fn filtered_deals(&self) -> Vec<&Deal> {
-        match self.platform_filter.shop_id() {
+        let mut deals: Vec<&Deal> = match self.platform_filter.shop_id() {
             None => self.deals.iter().collect(),
             Some(shop_id) => self
                 .deals
                 .iter()
                 .filter(|deal| deal.shop.id == shop_id.to_string())
                 .collect(),
+        };
+
+        // Sort based on current sort order
+        match self.sort_order {
+            SortOrder::None => {} // Keep API order
+            SortOrder::PriceAsc => {
+                deals.sort_by(|a, b| a.price.amount.partial_cmp(&b.price.amount).unwrap_or(std::cmp::Ordering::Equal));
+            }
+            SortOrder::PriceDesc => {
+                deals.sort_by(|a, b| b.price.amount.partial_cmp(&a.price.amount).unwrap_or(std::cmp::Ordering::Equal));
+            }
+        }
+
+        deals
+    }
+
+    pub fn cycle_sort_order(&mut self) {
+        self.sort_order = self.sort_order.next();
+        // Reset selection to first item when changing sort
+        self.list_state.select(Some(0));
+    }
+
+    /// Open platform selection popup
+    pub fn open_platform_popup(&mut self) {
+        let enabled = self.enabled_platforms();
+        // Find current platform index in enabled list
+        self.platform_popup_index = enabled
+            .iter()
+            .position(|&p| p == self.platform_filter)
+            .unwrap_or(0);
+        self.popup = Popup::Platform;
+    }
+
+    /// Navigate to next platform in popup
+    pub fn platform_popup_next(&mut self) {
+        let enabled = self.enabled_platforms();
+        if !enabled.is_empty() {
+            self.platform_popup_index = (self.platform_popup_index + 1) % enabled.len();
         }
     }
 
-    pub fn toggle_dropdown(&mut self) {
-        self.show_platform_dropdown = !self.show_platform_dropdown;
-        if self.show_platform_dropdown {
-            let enabled = self.enabled_platforms();
-            self.dropdown_selected = enabled
-                .iter()
-                .position(|&p| p == self.platform_filter)
-                .unwrap_or(0);
-        }
-    }
-
-    pub fn dropdown_next(&mut self) {
-        let enabled_count = self.enabled_platforms().len();
-        if enabled_count > 0 {
-            self.dropdown_selected = (self.dropdown_selected + 1) % enabled_count;
-        }
-    }
-
-    pub fn dropdown_previous(&mut self) {
-        let enabled_count = self.enabled_platforms().len();
-        if enabled_count > 0 {
-            if self.dropdown_selected == 0 {
-                self.dropdown_selected = enabled_count - 1;
+    /// Navigate to previous platform in popup
+    pub fn platform_popup_prev(&mut self) {
+        let enabled = self.enabled_platforms();
+        if !enabled.is_empty() {
+            if self.platform_popup_index == 0 {
+                self.platform_popup_index = enabled.len() - 1;
             } else {
-                self.dropdown_selected -= 1;
+                self.platform_popup_index -= 1;
             }
         }
     }
 
-    /// Prepare dropdown selection and set loading state (loading happens in main loop)
-    pub fn dropdown_select_prepare(&mut self) {
+    /// Select platform from popup and close it
+    /// Returns true if a different platform was selected (needs reload)
+    pub fn platform_popup_select(&mut self) -> bool {
         let enabled = self.enabled_platforms();
-        if let Some(&platform) = enabled.get(self.dropdown_selected) {
+        if let Some(&platform) = enabled.get(self.platform_popup_index) {
+            let changed = self.platform_filter != platform;
             self.platform_filter = platform;
+            self.popup = Popup::None;
+            if changed {
+                self.list_state.select(Some(0));
+            }
+            changed
+        } else {
+            self.popup = Popup::None;
+            false
         }
-        self.show_platform_dropdown = false;
-        self.loading = true;
     }
 
     pub fn set_loading(&mut self, loading: bool) {

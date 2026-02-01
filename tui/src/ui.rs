@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect, Alignment},
     style::{Color, Style, Modifier},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 
@@ -13,11 +13,13 @@ use dealve_core::models::{Platform, Region};
 const PURPLE_PRIMARY: Color = Color::Rgb(200, 160, 255);   // Pastel lavender - main brand color
 const PURPLE_LIGHT: Color = Color::Rgb(220, 190, 255);     // Lighter pastel lavender - highlights
 const PURPLE_ACCENT: Color = Color::Rgb(180, 130, 255);    // Slightly stronger pastel for accents
+const SHORTCUT_KEY: Color = Color::Rgb(255, 120, 200);     // Pink/magenta for shortcut keys (btop style)
 const ACCENT_GREEN: Color = Color::Rgb(150, 230, 150);     // Pastel mint green - good deals
 const ACCENT_YELLOW: Color = Color::Rgb(255, 230, 150);    // Pastel gold/cream - medium deals
 const TEXT_PRIMARY: Color = Color::White;
 const TEXT_SECONDARY: Color = Color::Rgb(180, 180, 180);   // Light gray
 const TEXT_DIMMED: Color = Color::Rgb(90, 90, 90);         // Dimmed text for background when menu open
+const BG_DARK: Color = Color::Rgb(20, 15, 30);             // Very dark purple background
 
 const ASCII_LOGO: [&str; 6] = [
     "██████╗ ███████╗ █████╗ ██╗    ██╗   ██╗███████╗",
@@ -29,6 +31,10 @@ const ASCII_LOGO: [&str; 6] = [
 ];
 
 pub fn render(frame: &mut Frame, app: &mut App) {
+    // Fill entire screen with dark purple background
+    let bg_block = Block::default().style(Style::default().bg(BG_DARK));
+    frame.render_widget(bg_block, frame.area());
+
     let dimmed = app.show_menu;
     render_main(frame, app, dimmed);
 
@@ -40,6 +46,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         Popup::None => {}
         Popup::Options => render_options_popup(frame, app),
         Popup::Keybinds => render_keybinds_popup(frame),
+        Popup::Platform => render_platform_popup(frame, app),
     }
 }
 
@@ -66,10 +73,6 @@ fn render_main(frame: &mut Frame, app: &mut App, dimmed: bool) {
     render_deals_list(frame, app, left_panel, dimmed);
     render_game_details(frame, app, details_panel, dimmed);
     render_price_chart(frame, app, chart_panel, dimmed);
-
-    if app.show_platform_dropdown {
-        render_dropdown(frame, app, left_panel);
-    }
 }
 
 fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool) {
@@ -77,6 +80,12 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
     let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
     let title_color = if dimmed { TEXT_DIMMED } else { PURPLE_LIGHT };
+
+    // Build title " Deals [Platform] "
+    let title = format!(" Deals [{}] ", app.platform_filter.name());
+
+    // Build bottom status bar (btop style)
+    let status_line = build_status_line(app, dimmed);
 
     if app.loading {
         let spinner = app.spinner_char();
@@ -87,7 +96,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(format!(" Deals [{}] ", app.platform_filter.name())));
+                .title(Span::styled(&title, Style::default().fg(title_color)))
+                .title_bottom(status_line));
         frame.render_widget(loading, area);
         return;
     }
@@ -98,7 +108,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(" Error "));
+                .title(" Error ")
+                .title_bottom(status_line));
         frame.render_widget(error_msg, area);
         return;
     }
@@ -113,7 +124,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(format!(" Deals [{}] ", app.platform_filter.name())));
+                .title(Span::styled(&title, Style::default().fg(title_color)))
+                .title_bottom(status_line));
         frame.render_widget(empty, area);
         return;
     }
@@ -124,9 +136,9 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             let price_str = format!("{}{:.2}", deal.price.currency_symbol(), deal.price.amount);
             let discount_str = format!("-{}%", deal.price.discount);
 
-            // Calculate available width for title
-            let available_width = area.width.saturating_sub(20) as usize;
-            let title = truncate(&deal.title, available_width);
+            // Calculate available width for title (leave space for price, discount, ATL, scrollbar)
+            let available_width = area.width.saturating_sub(28) as usize;
+            let deal_title = truncate(&deal.title, available_width);
 
             // Check if this is an all-time low - highlight in purple!
             let is_atl = deal.history_low
@@ -134,29 +146,31 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
                 .unwrap_or(false);
 
             // Color scheme based on deal quality (respects dimmed state)
+            // Titles always gray, prices/discounts colored by deal quality
             let (item_title_color, price_color, discount_color) = if dimmed {
                 (TEXT_DIMMED, TEXT_DIMMED, TEXT_DIMMED)
             } else if is_atl {
-                // All-time low: purple theme
-                (PURPLE_LIGHT, PURPLE_PRIMARY, PURPLE_PRIMARY)
+                // All-time low: title gray, price/discount purple
+                (TEXT_SECONDARY, PURPLE_PRIMARY, PURPLE_PRIMARY)
             } else if deal.price.discount >= 75 {
-                (text_color, ACCENT_GREEN, ACCENT_GREEN)
+                (TEXT_SECONDARY, ACCENT_GREEN, ACCENT_GREEN)
             } else if deal.price.discount >= 50 {
-                (text_color, ACCENT_YELLOW, ACCENT_YELLOW)
+                (TEXT_SECONDARY, ACCENT_YELLOW, ACCENT_YELLOW)
             } else {
-                (text_color, text_color, TEXT_SECONDARY)
+                // Normal deals: title gray, price/discount gray
+                (TEXT_SECONDARY, TEXT_SECONDARY, TEXT_SECONDARY)
             };
 
             let mut spans = vec![
-                Span::styled(format!("{:<width$}", title, width = available_width), Style::default().fg(item_title_color)),
+                Span::styled(format!("{:<width$}", deal_title, width = available_width), Style::default().fg(item_title_color)),
                 Span::styled(format!("{:>8}", price_str), Style::default().fg(price_color)),
                 Span::styled(format!("{:>6}", discount_str), Style::default().fg(discount_color)),
             ];
 
-            // Add ATL indicator
+            // Add ATL indicator with padding for scrollbar
             if is_atl {
                 let atl_color = if dimmed { TEXT_DIMMED } else { PURPLE_PRIMARY };
-                spans.push(Span::styled(" ATL", Style::default().fg(atl_color).add_modifier(Modifier::BOLD)));
+                spans.push(Span::styled(" ATL ", Style::default().fg(atl_color).add_modifier(Modifier::BOLD)));
             }
 
             let content = Line::from(spans);
@@ -170,18 +184,71 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
         Style::default().bg(PURPLE_ACCENT).fg(TEXT_PRIMARY)
     };
 
+    // Save values for scrollbar before render
+    let total_items = filtered_deals.len();
+    let selected = app.list_state.selected().unwrap_or(0);
+
     let deals_list = List::new(items)
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
-            .title(Span::styled(
-                format!(" Deals [{}] ", app.platform_filter.name()),
-                Style::default().fg(title_color)
-            )))
+            .title(Span::styled(&title, Style::default().fg(title_color)))
+            .title_bottom(status_line))
         .highlight_style(highlight_style)
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(deals_list, area, &mut app.list_state);
+
+    // Render scrollbar with pink arrows (shortcut style)
+    let scrollbar_track_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
+    let scrollbar_arrow_color = if dimmed { TEXT_DIMMED } else { SHORTCUT_KEY };
+
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some("↑"))
+        .end_symbol(Some("↓"))
+        .track_symbol(Some("│"))
+        .thumb_symbol("█")
+        .style(Style::default().fg(scrollbar_track_color))
+        .begin_style(Style::default().fg(scrollbar_arrow_color))
+        .end_style(Style::default().fg(scrollbar_arrow_color));
+
+    let mut scrollbar_state = ScrollbarState::new(total_items).position(selected);
+
+    // Render scrollbar in the inner area (inside the border)
+    let scrollbar_area = Rect {
+        x: area.x,
+        y: area.y,
+        width: area.width,
+        height: area.height.saturating_sub(1), // Don't overlap with bottom border
+    };
+    frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+}
+
+/// Build status bar line with btop-style highlighted shortcut keys
+fn build_status_line(app: &App, dimmed: bool) -> Line<'static> {
+    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };  // White for labels
+    let shortcut_color = if dimmed { TEXT_DIMMED } else { SHORTCUT_KEY };
+    let value_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+
+    let mut spans: Vec<Span> = Vec::new();
+
+    // Platform: "platform" with 'p' highlighted (no value since it's in title now)
+    spans.push(Span::styled("p", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("latform ", Style::default().fg(text_color)));
+
+    // Sort order: "sort" with 's' highlighted
+    spans.push(Span::styled("s", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("ort", Style::default().fg(text_color)));
+    match app.sort_order.label() {
+        Some(label) => spans.push(Span::styled(format!("[{}] ", label), Style::default().fg(value_color))),
+        None => spans.push(Span::styled("[—] ", Style::default().fg(text_color))),
+    }
+
+    // Refresh: "refresh" with 'r' highlighted
+    spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("efresh ", Style::default().fg(text_color)));
+
+    Line::from(spans)
 }
 
 fn render_game_details(frame: &mut Frame, app: &App, area: Rect, dimmed: bool) {
@@ -612,7 +679,7 @@ fn render_platforms_tab(frame: &mut Frame, app: &App, area: Rect) {
 fn render_keybinds_popup(frame: &mut Frame) {
     let area = frame.area();
     let popup_width = 45u16;
-    let popup_height = 14u16;
+    let popup_height = 15u16;
     let popup_x = area.width.saturating_sub(popup_width) / 2;
     let popup_y = area.height.saturating_sub(popup_height) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
@@ -623,7 +690,8 @@ fn render_keybinds_popup(frame: &mut Frame) {
         "",
         "  [Up/Down] or [j/k]  Navigate",
         "  [Enter]             Open deal / Select",
-        "  [p]                 Open platform filter",
+        "  [p]                 Change platform",
+        "  [s]                 Cycle sort order",
         "  [r]                 Refresh deals",
         "  [Esc]               Menu / Close popup",
         "  [q]                 Quit (from menu)",
@@ -641,48 +709,78 @@ fn render_keybinds_popup(frame: &mut Frame) {
     frame.render_widget(popup, popup_area);
 }
 
-fn render_dropdown(frame: &mut Frame, app: &mut App, list_area: Rect) {
+fn render_platform_popup(frame: &mut Frame, app: &App) {
+    let area = frame.area();
     let enabled_platforms = app.enabled_platforms();
-    let dropdown_width = 20u16;
-    let max_visible = enabled_platforms.len().min(15) as u16;
-    let dropdown_height = max_visible + 2;
 
-    let dropdown_x = list_area.x + 2;
-    let dropdown_y = list_area.y + 1;
+    // Calculate popup size based on content
+    let popup_width = 35u16;
+    let popup_height = (enabled_platforms.len() as u16 + 5).min(20); // +5 for title, borders, help
+    let popup_x = area.width.saturating_sub(popup_width) / 2;
+    let popup_y = area.height.saturating_sub(popup_height) / 2;
+    let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
 
-    let frame_height = frame.area().height;
-    let available_height = frame_height.saturating_sub(dropdown_y);
-    let dropdown_height = dropdown_height.min(available_height);
+    frame.render_widget(Clear, popup_area);
 
-    let dropdown_area = Rect::new(
-        dropdown_x,
-        dropdown_y,
-        dropdown_width,
-        dropdown_height,
+    // Main popup block
+    let block = Block::default()
+        .title(Span::styled(" Select Platform ", Style::default().fg(PURPLE_LIGHT)))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(PURPLE_ACCENT));
+    frame.render_widget(block, popup_area);
+
+    // Inner area
+    let inner = Rect::new(
+        popup_area.x + 1,
+        popup_area.y + 1,
+        popup_area.width - 2,
+        popup_area.height - 2,
     );
 
-    frame.render_widget(Clear, dropdown_area);
+    // Split into list and help
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .split(inner);
 
-    let items: Vec<ListItem> = enabled_platforms
-        .iter()
-        .map(|platform| {
-            ListItem::new(format!("  {}", platform.name()))
-                .style(Style::default().fg(TEXT_PRIMARY))
-        })
-        .collect();
+    // Platform list
+    let mut platform_lines: Vec<Line> = Vec::new();
+    for (i, platform) in enabled_platforms.iter().enumerate() {
+        let is_selected = app.platform_popup_index == i;
+        let is_current = app.platform_filter == *platform;
 
-    let mut list_state = ratatui::widgets::ListState::default();
-    list_state.select(Some(app.dropdown_selected));
+        let marker = if is_current { "●" } else { "○" };
+        let line_style = if is_selected {
+            Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+        } else if is_current {
+            Style::default().fg(PURPLE_LIGHT)
+        } else {
+            Style::default().fg(TEXT_PRIMARY)
+        };
 
-    let dropdown = List::new(items)
-        .block(Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(PURPLE_ACCENT))
-            .title(Span::styled(" Platform ", Style::default().fg(PURPLE_LIGHT))))
-        .highlight_style(Style::default().bg(PURPLE_ACCENT).fg(TEXT_PRIMARY))
-        .highlight_symbol("> ");
+        platform_lines.push(Line::from(Span::styled(
+            format!(" {} {}", marker, platform.name()),
+            line_style,
+        )));
+    }
 
-    frame.render_stateful_widget(dropdown, dropdown_area, &mut list_state);
+    // Calculate scroll offset
+    let visible_height = chunks[0].height as usize;
+    let scroll_offset = if app.platform_popup_index >= visible_height {
+        (app.platform_popup_index - visible_height + 1) as u16
+    } else {
+        0
+    };
+
+    let platform_list = Paragraph::new(platform_lines).scroll((scroll_offset, 0));
+    frame.render_widget(platform_list, chunks[0]);
+
+    // Help text
+    let help = Paragraph::new(Line::from(Span::styled(
+        "[Enter] Select  [Esc] Cancel",
+        Style::default().fg(TEXT_SECONDARY),
+    )));
+    frame.render_widget(help, chunks[1]);
 }
 
 /// Calculate vertical padding to center text within an area
