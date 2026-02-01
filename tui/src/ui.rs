@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect, Alignment},
     style::{Color, Style, Modifier},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, Row, Cell},
     Frame,
 };
 
@@ -132,15 +132,21 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
         return;
     }
 
-    let items: Vec<ListItem> = filtered_deals
+    // Build table header
+    let header_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+    let header = Row::new(vec![
+        Cell::from("Title").style(Style::default().fg(header_color)),
+        Cell::from("Price").style(Style::default().fg(header_color)),
+        Cell::from("Deal").style(Style::default().fg(header_color)),
+        Cell::from("").style(Style::default().fg(header_color)), // ATL column
+    ]);
+
+    // Build table rows
+    let rows: Vec<Row> = filtered_deals
         .iter()
         .map(|deal| {
             let price_str = format!("{}{:.2}", deal.price.currency_symbol(), deal.price.amount);
             let discount_str = format!("-{}%", deal.price.discount);
-
-            // Calculate available width for title (leave space for price, discount, ATL, scrollbar)
-            let available_width = area.width.saturating_sub(28) as usize;
-            let deal_title = truncate(&deal.title, available_width);
 
             // Check if this is an all-time low - highlight in purple!
             let is_atl = deal.history_low
@@ -148,35 +154,31 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
                 .unwrap_or(false);
 
             // Color scheme based on deal quality (respects dimmed state)
-            // Titles always gray, prices/discounts colored by deal quality
             let (item_title_color, price_color, discount_color) = if dimmed {
                 (TEXT_DIMMED, TEXT_DIMMED, TEXT_DIMMED)
             } else if is_atl {
-                // All-time low: title gray, price/discount purple
                 (TEXT_SECONDARY, PURPLE_PRIMARY, PURPLE_PRIMARY)
             } else if deal.price.discount >= 75 {
                 (TEXT_SECONDARY, ACCENT_GREEN, ACCENT_GREEN)
             } else if deal.price.discount >= 50 {
                 (TEXT_SECONDARY, ACCENT_YELLOW, ACCENT_YELLOW)
             } else {
-                // Normal deals: title gray, price/discount gray
                 (TEXT_SECONDARY, TEXT_SECONDARY, TEXT_SECONDARY)
             };
 
-            let mut spans = vec![
-                Span::styled(format!("{:<width$}", deal_title, width = available_width), Style::default().fg(item_title_color)),
-                Span::styled(format!("{:>8}", price_str), Style::default().fg(price_color)),
-                Span::styled(format!("{:>6}", discount_str), Style::default().fg(discount_color)),
-            ];
-
-            // Add ATL indicator with padding for scrollbar
-            if is_atl {
+            let atl_cell = if is_atl {
                 let atl_color = if dimmed { TEXT_DIMMED } else { PURPLE_PRIMARY };
-                spans.push(Span::styled(" ATL ", Style::default().fg(atl_color).add_modifier(Modifier::BOLD)));
-            }
+                Cell::from("ATL").style(Style::default().fg(atl_color).add_modifier(Modifier::BOLD))
+            } else {
+                Cell::from("")
+            };
 
-            let content = Line::from(spans);
-            ListItem::new(content)
+            Row::new(vec![
+                Cell::from(deal.title.clone()).style(Style::default().fg(item_title_color)),
+                Cell::from(price_str).style(Style::default().fg(price_color)),
+                Cell::from(discount_str).style(Style::default().fg(discount_color)),
+                atl_cell,
+            ])
         })
         .collect();
 
@@ -188,10 +190,9 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
 
     // Save values for scrollbar before render
     let total_items = filtered_deals.len();
-    let selected = app.list_state.selected().unwrap_or(0);
+    let selected = app.table_state.selected().unwrap_or(0);
 
     // Counter for bottom right corner (white and bold)
-    // Show loading indicator or "+" if more deals available
     let counter_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
     let counter_text = if app.loading_more {
         format!(" {}/{}  {} ", selected + 1, total_items, app.spinner_char())
@@ -202,17 +203,26 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     };
     let counter = Span::styled(counter_text, Style::default().fg(counter_color).add_modifier(Modifier::BOLD));
 
-    let deals_list = List::new(items)
+    // Column widths: Title takes remaining space, Price 8, Deal 6, ATL 4
+    let widths = [
+        Constraint::Min(20),
+        Constraint::Length(10),
+        Constraint::Length(7),
+        Constraint::Length(4),
+    ];
+
+    let table = Table::new(rows, widths)
+        .header(header)
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
             .title(title)
             .title_bottom(status_line)
             .title_bottom(Line::from(counter).alignment(Alignment::Right)))
-        .highlight_style(highlight_style)
+        .row_highlight_style(highlight_style)
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(deals_list, area, &mut app.list_state);
+    frame.render_stateful_widget(table, area, &mut app.table_state);
 
     // Render scrollbar with pink arrows (shortcut style)
     let scrollbar_track_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };

@@ -83,6 +83,7 @@ async fn check_load_task(app: &mut App, load_task: &mut Option<DealsLoadTask>, i
                         app.deals = new_deals;
                         app.deals_offset = page_size;
                         app.list_state.select(Some(0));
+                        app.table_state.select(Some(0));
                     }
                     app.error = None;
                 }

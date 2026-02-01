@@ -1,6 +1,6 @@
 use dealve_api::ItadClient;
 use dealve_core::models::{Deal, GameInfo, Platform, Region};
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, TableState};
 use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
@@ -170,6 +170,7 @@ pub struct App {
     pub popup: Popup,
     pub deals: Vec<Deal>,
     pub list_state: ListState,
+    pub table_state: TableState,
     pub should_quit: bool,
     pub loading: bool,
     pub error: Option<String>,
@@ -205,6 +206,8 @@ impl App {
     pub fn new(api_key: Option<String>) -> Self {
         let mut list_state = ListState::default();
         list_state.select(Some(0));
+        let mut table_state = TableState::default();
+        table_state.select(Some(0));
 
         // Load config from disk
         let config = Config::load();
@@ -218,6 +221,7 @@ impl App {
             popup: Popup::None,
             deals: vec![],
             list_state,
+            table_state,
             should_quit: false,
             loading: false,
             error: None,
@@ -245,10 +249,16 @@ impl App {
         self.should_quit = true;
     }
 
+    /// Select an item by index (syncs both list_state and table_state)
+    fn select(&mut self, index: Option<usize>) {
+        self.list_state.select(index);
+        self.table_state.select(index);
+    }
+
     pub fn next(&mut self) {
         let filtered_count = self.filtered_deals().len();
         if filtered_count > 0 {
-            let i = match self.list_state.selected() {
+            let i = match self.table_state.selected() {
                 Some(i) => {
                     if i >= filtered_count - 1 {
                         0
@@ -258,14 +268,14 @@ impl App {
                 }
                 None => 0,
             };
-            self.list_state.select(Some(i));
+            self.select(Some(i));
         }
     }
 
     pub fn previous(&mut self) {
         let filtered_count = self.filtered_deals().len();
         if filtered_count > 0 {
-            let i = match self.list_state.selected() {
+            let i = match self.table_state.selected() {
                 Some(i) => {
                     if i == 0 {
                         filtered_count - 1
@@ -275,12 +285,12 @@ impl App {
                 }
                 None => 0,
             };
-            self.list_state.select(Some(i));
+            self.select(Some(i));
         }
     }
 
     pub fn open_selected_deal(&self) {
-        if let Some(i) = self.list_state.selected() {
+        if let Some(i) = self.table_state.selected() {
             let filtered = self.filtered_deals();
             if let Some(deal) = filtered.get(i) {
                 let _ = webbrowser::open(&deal.url);
@@ -321,7 +331,7 @@ impl App {
     pub fn cycle_sort_order(&mut self) {
         self.sort_order = self.sort_order.next();
         // Reset selection to first item when changing sort
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Activate filter input mode
@@ -334,32 +344,32 @@ impl App {
     pub fn cancel_filter(&mut self) {
         self.filter_active = false;
         self.filter_text.clear();
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Confirm filter (just deactivate input mode, keep filter text)
     pub fn confirm_filter(&mut self) {
         self.filter_active = false;
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Add character to filter text
     pub fn filter_push(&mut self, c: char) {
         self.filter_text.push(c);
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Remove last character from filter text
     pub fn filter_pop(&mut self) {
         self.filter_text.pop();
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Clear the filter completely
     pub fn clear_filter(&mut self) {
         self.filter_text.clear();
         self.filter_active = false;
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Open platform selection popup
@@ -402,7 +412,7 @@ impl App {
             self.platform_filter = platform;
             self.popup = Popup::None;
             if changed {
-                self.list_state.select(Some(0));
+                self.select(Some(0));
             }
             changed
         } else {
@@ -423,7 +433,7 @@ impl App {
         self.deals.clear();
         self.deals_offset = 0;
         self.has_more_deals = true;
-        self.list_state.select(Some(0));
+        self.select(Some(0));
     }
 
     /// Check if we're near the end of the list and should load more
@@ -671,7 +681,7 @@ impl App {
     }
 
     pub fn selected_deal(&self) -> Option<&Deal> {
-        self.list_state
+        self.table_state
             .selected()
             .and_then(|i| self.filtered_deals().get(i).copied())
     }
