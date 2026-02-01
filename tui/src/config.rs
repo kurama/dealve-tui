@@ -1,4 +1,4 @@
-use dealve_core::models::Platform;
+use dealve_core::models::{Platform, Region};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -9,6 +9,12 @@ use std::path::PathBuf;
 pub struct Config {
     pub default_platform: String,
     pub enabled_platforms: Vec<String>,
+    #[serde(default = "default_region")]
+    pub region: String,
+}
+
+fn default_region() -> String {
+    Region::default().code().to_string()
 }
 
 impl Default for Config {
@@ -16,6 +22,7 @@ impl Default for Config {
         Self {
             default_platform: "All".to_string(),
             enabled_platforms: Platform::ALL.iter().map(|p| p.name().to_string()).collect(),
+            region: default_region(),
         }
     }
 }
@@ -75,12 +82,18 @@ impl Config {
             .collect()
     }
 
+    /// Get the region from config
+    pub fn get_region(&self) -> Region {
+        Region::from_code(&self.region).unwrap_or_default()
+    }
+
     /// Update from OptionsState
-    pub fn update_from_options(&mut self, default_platform: Platform, enabled_platforms: &HashSet<Platform>) {
+    pub fn update_from_options(&mut self, default_platform: Platform, enabled_platforms: &HashSet<Platform>, region: Region) {
         self.default_platform = default_platform.name().to_string();
         self.enabled_platforms = enabled_platforms
             .iter()
             .map(|p| p.name().to_string())
             .collect();
+        self.region = region.code().to_string();
     }
 }

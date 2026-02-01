@@ -53,10 +53,11 @@ async fn load_deals_with_spinner(
 
     let api_key_clone = env::var("ITAD_API_KEY").ok();
     let platform_filter = app.platform_filter;
+    let region_code = app.region.code().to_string();
     let load_task = tokio::spawn(async move {
         let client = dealve_api::ItadClient::new(api_key_clone);
         let shop_id = platform_filter.shop_id();
-        client.get_deals("US", 50, shop_id).await
+        client.get_deals(&region_code, 50, shop_id).await
     });
 
     // Animate spinner while loading
@@ -128,7 +129,13 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                             KeyCode::BackTab | KeyCode::Left => app.options_prev_tab(),
                             KeyCode::Down | KeyCode::Char('j') => app.options_next_item(),
                             KeyCode::Up | KeyCode::Char('k') => app.options_prev_item(),
-                            KeyCode::Enter | KeyCode::Char(' ') => app.options_toggle_item(),
+                            KeyCode::Enter | KeyCode::Char(' ') => {
+                                let needs_reload = app.options_toggle_item();
+                                if needs_reload {
+                                    app.close_popup();
+                                    pending_deals_load = true;
+                                }
+                            }
                             _ => {}
                         }
                     } else if app.popup == Popup::Keybinds {

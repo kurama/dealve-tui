@@ -1,5 +1,5 @@
 use dealve_api::ItadClient;
-use dealve_core::models::{Deal, GameInfo, Platform};
+use dealve_core::models::{Deal, GameInfo, Platform, Region};
 use ratatui::widgets::ListState;
 use std::collections::{HashMap, HashSet};
 
@@ -40,17 +40,19 @@ pub enum Popup {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptionsTab {
+    Region,
     Platforms,
-    // Future tabs can be added here
 }
 
 impl OptionsTab {
     pub const ALL: &'static [OptionsTab] = &[
+        OptionsTab::Region,
         OptionsTab::Platforms,
     ];
 
     pub fn name(&self) -> &str {
         match self {
+            OptionsTab::Region => "Region",
             OptionsTab::Platforms => "Platforms",
         }
     }
@@ -60,8 +62,10 @@ impl OptionsTab {
 pub struct OptionsState {
     pub current_tab: usize,
     pub platform_list_index: usize,
+    pub region_list_index: usize,
     pub default_platform: Platform,
     pub enabled_platforms: HashSet<Platform>,
+    pub region: Region,
 }
 
 impl Default for OptionsState {
@@ -74,8 +78,10 @@ impl Default for OptionsState {
         Self {
             current_tab: 0,
             platform_list_index: 0,
+            region_list_index: 0,
             default_platform: Platform::All,
             enabled_platforms: enabled,
+            region: Region::default(),
         }
     }
 }
@@ -85,6 +91,7 @@ impl OptionsState {
     pub fn from_config(config: &Config) -> Self {
         let enabled_platforms = config.get_enabled_platforms();
         let default_platform = config.get_default_platform();
+        let region = config.get_region();
 
         // Ensure default platform is enabled
         let default_platform = if enabled_platforms.contains(&default_platform) {
@@ -96,15 +103,17 @@ impl OptionsState {
         Self {
             current_tab: 0,
             platform_list_index: 0,
+            region_list_index: 0,
             default_platform,
             enabled_platforms,
+            region,
         }
     }
 
     /// Save current state to config
     pub fn save_to_config(&self) {
         let mut config = Config::load();
-        config.update_from_options(self.default_platform, &self.enabled_platforms);
+        config.update_from_options(self.default_platform, &self.enabled_platforms, self.region);
         let _ = config.save(); // Ignore errors silently
     }
 }
@@ -119,6 +128,7 @@ pub struct App {
     pub loading: bool,
     pub error: Option<String>,
     pub platform_filter: Platform,
+    pub region: Region,
     pub show_platform_dropdown: bool,
     pub dropdown_selected: usize,
     // Game info cache and loading state
@@ -141,6 +151,7 @@ impl App {
         let config = Config::load();
         let options = OptionsState::from_config(&config);
         let platform_filter = options.default_platform;
+        let region = options.region;
 
         Self {
             show_menu: false,
@@ -152,6 +163,7 @@ impl App {
             loading: false,
             error: None,
             platform_filter,
+            region,
             show_platform_dropdown: false,
             dropdown_selected: 0,
             game_info_cache: HashMap::new(),
@@ -313,12 +325,14 @@ impl App {
         self.popup = Popup::None;
         // Reset options navigation when closing
         self.options.platform_list_index = 0;
+        self.options.region_list_index = 0;
     }
 
     // Options navigation
     pub fn options_next_tab(&mut self) {
         self.options.current_tab = (self.options.current_tab + 1) % OptionsTab::ALL.len();
         self.options.platform_list_index = 0;
+        self.options.region_list_index = 0;
     }
 
     pub fn options_prev_tab(&mut self) {
@@ -328,13 +342,26 @@ impl App {
             self.options.current_tab -= 1;
         }
         self.options.platform_list_index = 0;
+        self.options.region_list_index = 0;
+    }
+
+    /// Get platforms without "All" (for the checkbox list)
+    fn platforms_without_all() -> Vec<Platform> {
+        Platform::ALL
+            .iter()
+            .copied()
+            .filter(|p| *p != Platform::All)
+            .collect()
     }
 
     pub fn options_next_item(&mut self) {
         match OptionsTab::ALL[self.options.current_tab] {
+            OptionsTab::Region => {
+                self.options.region_list_index = (self.options.region_list_index + 1) % Region::ALL.len();
+            }
             OptionsTab::Platforms => {
-                // +1 for the "Default Platform" option at the top
-                let total_items = 1 + Platform::ALL.len();
+                // +1 for the "Default Platform" option at the top, rest are platforms without All
+                let total_items = 1 + Self::platforms_without_all().len();
                 self.options.platform_list_index = (self.options.platform_list_index + 1) % total_items;
             }
         }
@@ -342,8 +369,15 @@ impl App {
 
     pub fn options_prev_item(&mut self) {
         match OptionsTab::ALL[self.options.current_tab] {
+            OptionsTab::Region => {
+                if self.options.region_list_index == 0 {
+                    self.options.region_list_index = Region::ALL.len() - 1;
+                } else {
+                    self.options.region_list_index -= 1;
+                }
+            }
             OptionsTab::Platforms => {
-                let total_items = 1 + Platform::ALL.len();
+                let total_items = 1 + Self::platforms_without_all().len();
                 if self.options.platform_list_index == 0 {
                     self.options.platform_list_index = total_items - 1;
                 } else {
@@ -353,23 +387,33 @@ impl App {
         }
     }
 
-    pub fn options_toggle_item(&mut self) {
+    pub fn options_toggle_item(&mut self) -> bool {
+        let mut needs_reload = false;
         match OptionsTab::ALL[self.options.current_tab] {
+            OptionsTab::Region => {
+                // Select the region
+                if let Some(&region) = Region::ALL.get(self.options.region_list_index) {
+                    if self.options.region != region {
+                        self.options.region = region;
+                        self.region = region;
+                        needs_reload = true;
+                    }
+                }
+                self.options.save_to_config();
+            }
             OptionsTab::Platforms => {
                 if self.options.platform_list_index == 0 {
                     // Cycle through enabled platforms for default
                     self.cycle_default_platform();
                 } else {
-                    // Toggle platform enabled/disabled
+                    // Toggle platform enabled/disabled (list without All)
+                    let platforms = Self::platforms_without_all();
                     let platform_idx = self.options.platform_list_index - 1;
-                    if let Some(&platform) = Platform::ALL.get(platform_idx) {
-                        // Don't allow disabling "All"
-                        if platform != Platform::All {
-                            if self.options.enabled_platforms.contains(&platform) {
-                                self.options.enabled_platforms.remove(&platform);
-                            } else {
-                                self.options.enabled_platforms.insert(platform);
-                            }
+                    if let Some(&platform) = platforms.get(platform_idx) {
+                        if self.options.enabled_platforms.contains(&platform) {
+                            self.options.enabled_platforms.remove(&platform);
+                        } else {
+                            self.options.enabled_platforms.insert(platform);
                         }
                     }
                 }
@@ -377,6 +421,7 @@ impl App {
                 self.options.save_to_config();
             }
         }
+        needs_reload
     }
 
     fn cycle_default_platform(&mut self) {

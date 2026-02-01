@@ -1,5 +1,91 @@
 use serde::{Deserialize, Serialize};
 
+/// Supported countries for deal filtering (ISO 3166-1 alpha-2 codes)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Region {
+    FR, // France
+    DE, // Germany
+    US, // United States
+    GB, // United Kingdom
+    CA, // Canada
+    AU, // Australia
+    IT, // Italy
+    ES, // Spain
+    PL, // Poland
+    BR, // Brazil
+}
+
+impl Region {
+    pub fn name(&self) -> &str {
+        match self {
+            Region::FR => "France",
+            Region::DE => "Germany",
+            Region::US => "United States",
+            Region::GB => "United Kingdom",
+            Region::CA => "Canada",
+            Region::AU => "Australia",
+            Region::IT => "Italy",
+            Region::ES => "Spain",
+            Region::PL => "Poland",
+            Region::BR => "Brazil",
+        }
+    }
+
+    pub fn code(&self) -> &str {
+        match self {
+            Region::FR => "FR",
+            Region::DE => "DE",
+            Region::US => "US",
+            Region::GB => "GB",
+            Region::CA => "CA",
+            Region::AU => "AU",
+            Region::IT => "IT",
+            Region::ES => "ES",
+            Region::PL => "PL",
+            Region::BR => "BR",
+        }
+    }
+
+    pub const ALL: &'static [Region] = &[
+        Region::FR,
+        Region::DE,
+        Region::US,
+        Region::GB,
+        Region::CA,
+        Region::AU,
+        Region::IT,
+        Region::ES,
+        Region::PL,
+        Region::BR,
+    ];
+
+    pub fn from_code(code: &str) -> Option<Region> {
+        match code {
+            "FR" => Some(Region::FR),
+            "DE" => Some(Region::DE),
+            "US" => Some(Region::US),
+            "GB" => Some(Region::GB),
+            "CA" => Some(Region::CA),
+            "AU" => Some(Region::AU),
+            "IT" => Some(Region::IT),
+            "ES" => Some(Region::ES),
+            "PL" => Some(Region::PL),
+            "BR" => Some(Region::BR),
+            // Handle old config values
+            "EU1" => Some(Region::FR),
+            "EU2" => Some(Region::PL),
+            "UK" => Some(Region::GB),
+            _ => None,
+        }
+    }
+}
+
+impl Default for Region {
+    fn default() -> Self {
+        Region::FR // Default to France
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Platform {
     All,
