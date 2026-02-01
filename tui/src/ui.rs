@@ -81,8 +81,9 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
     let title_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
 
-    // Build title " Deals [Platform] "
-    let title = format!(" Deals [{}] ", app.platform_filter.name());
+    // Build title with btop-style brackets
+    let title_text = format!("Deals [{}]", app.platform_filter.name());
+    let title = build_title(&title_text, border_color, title_color);
 
     // Build bottom status bar (btop style)
     let status_line = build_status_line(app, dimmed);
@@ -96,19 +97,20 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(Span::styled(&title, Style::default().fg(title_color)))
+                .title(title)
                 .title_bottom(status_line));
         frame.render_widget(loading, area);
         return;
     }
 
     if let Some(error) = &app.error {
+        let error_title = build_title("Error", border_color, title_color);
         let error_msg = Paragraph::new(format!("Error: {}", error))
             .style(Style::default().fg(Color::Red))
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(" Error ")
+                .title(error_title)
                 .title_bottom(status_line));
         frame.render_widget(error_msg, area);
         return;
@@ -124,7 +126,7 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
             .block(Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(border_color))
-                .title(Span::styled(&title, Style::default().fg(title_color)))
+                .title(title)
                 .title_bottom(status_line));
         frame.render_widget(empty, area);
         return;
@@ -204,7 +206,7 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
         .block(Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
-            .title(Span::styled(&title, Style::default().fg(title_color)))
+            .title(title)
             .title_bottom(status_line)
             .title_bottom(Line::from(counter).alignment(Alignment::Right)))
         .highlight_style(highlight_style)
@@ -237,51 +239,72 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 }
 
-/// Build status bar line with btop-style highlighted shortcut keys
+/// Build status bar line with btop-style highlighted shortcut keys and separators
 fn build_status_line(app: &App, dimmed: bool) -> Line<'static> {
-    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };  // White for labels
+    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
     let shortcut_color = if dimmed { TEXT_DIMMED } else { SHORTCUT_KEY };
     let value_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+    let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
 
     let mut spans: Vec<Span> = Vec::new();
 
+    // First element opening bracket
+    spans.push(Span::styled("┘", Style::default().fg(border_color)));
+
     // Filter: show input field when active, otherwise show "filter" shortcut
     if app.filter_active {
-        // Show "f" in pink, space, then the input text, then "⏎" (Enter) in pink
         spans.push(Span::styled("f ", Style::default().fg(shortcut_color)));
         spans.push(Span::styled(app.filter_text.clone(), Style::default().fg(text_color)));
-        spans.push(Span::styled("_", Style::default().fg(text_color))); // Cursor
+        spans.push(Span::styled("_", Style::default().fg(text_color)));
         spans.push(Span::styled(" ⏎", Style::default().fg(shortcut_color)));
-        spans.push(Span::styled(" ", Style::default().fg(text_color)));
     } else if !app.filter_text.is_empty() {
-        // Filter is set but not active - show current filter with clear option
         spans.push(Span::styled("f", Style::default().fg(shortcut_color)));
         spans.push(Span::styled(format!("[{}] ", app.filter_text.clone()), Style::default().fg(value_color)));
         spans.push(Span::styled("c", Style::default().fg(shortcut_color)));
-        spans.push(Span::styled("lear ", Style::default().fg(text_color)));
+        spans.push(Span::styled("lear", Style::default().fg(text_color)));
     } else {
-        // No filter - show "filter" shortcut
         spans.push(Span::styled("f", Style::default().fg(shortcut_color)));
-        spans.push(Span::styled("ilter ", Style::default().fg(text_color)));
+        spans.push(Span::styled("ilter", Style::default().fg(text_color)));
     }
 
-    // Platform: "platform" with 'p' highlighted (no value since it's in title now)
-    spans.push(Span::styled("p", Style::default().fg(shortcut_color)));
-    spans.push(Span::styled("latform ", Style::default().fg(text_color)));
+    // Separator
+    spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
-    // Sort order: "sort" with 's' highlighted
+    // Platform
+    spans.push(Span::styled("p", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("latform", Style::default().fg(text_color)));
+
+    // Separator
+    spans.push(Span::styled("└┘", Style::default().fg(border_color)));
+
+    // Sort order
     spans.push(Span::styled("s", Style::default().fg(shortcut_color)));
     spans.push(Span::styled("ort", Style::default().fg(text_color)));
     match app.sort_order.label() {
-        Some(label) => spans.push(Span::styled(format!("[{}] ", label), Style::default().fg(value_color))),
-        None => spans.push(Span::styled("[—] ", Style::default().fg(text_color))),
+        Some(label) => spans.push(Span::styled(format!("[{}]", label), Style::default().fg(value_color))),
+        None => spans.push(Span::styled("[—]", Style::default().fg(text_color))),
     }
 
-    // Refresh: "refresh" with 'r' highlighted
+    // Separator
+    spans.push(Span::styled("└┘", Style::default().fg(border_color)));
+
+    // Refresh
     spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
-    spans.push(Span::styled("efresh ", Style::default().fg(text_color)));
+    spans.push(Span::styled("efresh", Style::default().fg(text_color)));
+
+    // Last element closing bracket
+    spans.push(Span::styled("└", Style::default().fg(border_color)));
 
     Line::from(spans)
+}
+
+/// Build a title with btop-style brackets
+fn build_title(text: &str, border_color: Color, title_color: Color) -> Line<'static> {
+    Line::from(vec![
+        Span::styled("┐", Style::default().fg(border_color)),
+        Span::styled(text.to_string(), Style::default().fg(title_color)),
+        Span::styled("┌", Style::default().fg(border_color)),
+    ])
 }
 
 fn render_game_details(frame: &mut Frame, app: &App, area: Rect, dimmed: bool) {
@@ -295,10 +318,11 @@ fn render_game_details(frame: &mut Frame, app: &App, area: Rect, dimmed: bool) {
     let yellow_color = if dimmed { TEXT_DIMMED } else { ACCENT_YELLOW };
     let secondary_color = if dimmed { TEXT_DIMMED } else { TEXT_SECONDARY };
 
+    let title = build_title("Game Details", border_color, title_color);
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(" Game Details ", Style::default().fg(title_color)));
+        .title(title);
 
     // Get selected deal for basic info
     let selected_deal = app.selected_deal();
@@ -428,10 +452,11 @@ fn render_price_chart(frame: &mut Frame, _app: &App, area: Rect, dimmed: bool) {
     let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
     let title_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
 
+    let title = build_title("Price History", border_color, title_color);
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(" Price History ", Style::default().fg(title_color)));
+        .title(title);
 
     // Price history chart placeholder
     let content_lines = vec![

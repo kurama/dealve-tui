@@ -10,7 +10,7 @@ use crossterm::{
 };
 use dealve_core::models::{Deal, Platform};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{env, io::{stdout, Stdout}};
+use std::{env, io::{stdout, Stdout}, time::Instant};
 use tokio::task::JoinHandle;
 
 use app::{App, Popup};
@@ -120,11 +120,13 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
     let mut load_more_task: Option<DealsLoadTask> = None;
 
     // Track when selection changed to debounce game info loading
-    let mut last_selection_change = std::time::Instant::now();
+    let mut last_selection_change = Instant::now();
     let mut pending_game_info_load = false;
 
     loop {
-        terminal.draw(|frame| ui::render(frame, &mut app))?;
+        terminal.draw(|frame| {
+            ui::render(frame, &mut app);
+        })?;
 
         if app.should_quit {
             break;
@@ -215,7 +217,9 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                         }
                     } else if app.show_menu {
                         match key.code {
-                            KeyCode::Esc => app.toggle_menu(),
+                            KeyCode::Esc => {
+                                app.toggle_menu();
+                            }
                             KeyCode::Char('q') => app.quit(),
                             KeyCode::Down | KeyCode::Char('j') => app.menu_next(),
                             KeyCode::Up | KeyCode::Char('k') => app.menu_previous(),
@@ -251,7 +255,9 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                         }
                     } else {
                         match key.code {
-                            KeyCode::Esc | KeyCode::Char('q') => app.toggle_menu(),
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                app.toggle_menu();
+                            }
                             KeyCode::Down | KeyCode::Char('j') => {
                                 app.next();
                                 last_selection_change = std::time::Instant::now();
