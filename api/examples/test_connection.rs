@@ -18,7 +18,7 @@ async fn main() {
 
     println!("Fetching top 5 deals from IsThereAnyDeal...\n");
 
-    match client.get_deals("US", 20).await {
+    match client.get_deals("US", 20, None).await {
         Ok(deals) => {
             println!("Found {} deals:", deals.len());
             for (i, deal) in deals.iter().enumerate() {

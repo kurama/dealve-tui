@@ -64,7 +64,9 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                             KeyCode::Esc | KeyCode::Char('f') => app.toggle_dropdown(),
                             KeyCode::Down | KeyCode::Char('j') => app.dropdown_next(),
                             KeyCode::Up | KeyCode::Char('k') => app.dropdown_previous(),
-                            KeyCode::Enter => app.dropdown_select(),
+                            KeyCode::Enter => {
+                                app.dropdown_select().await;
+                            }
                             _ => {}
                         }
                     } else {

@@ -37,7 +37,9 @@ impl App {
         self.loading = true;
         self.error = None;
 
-        match self.client.get_deals("US", 50).await {
+        let shop_id = self.platform_filter.shop_id();
+
+        match self.client.get_deals("US", 50, shop_id).await {
             Ok(deals) => {
                 self.deals = deals;
                 self.list_state.select(Some(0));
@@ -130,10 +132,10 @@ impl App {
         }
     }
 
-    pub fn dropdown_select(&mut self) {
+    pub async fn dropdown_select(&mut self) {
         self.platform_filter = Platform::ALL[self.dropdown_selected];
         self.show_platform_dropdown = false;
-        self.list_state.select(Some(0));
+        self.load_deals().await;
     }
 
     pub fn platforms() -> &'static [Platform] {
