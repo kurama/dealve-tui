@@ -301,6 +301,18 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                                     pending_game_info_load = true;
                                 }
                             }
+                            KeyCode::Char('m') => {
+                                // Load more deals (same as infinite scroll)
+                                if app.has_more_deals && load_task.is_none() && load_more_task.is_none() {
+                                    app.loading_more = true;
+                                    load_more_task = Some(spawn_deals_load(
+                                        app.platform_filter,
+                                        app.region.code().to_string(),
+                                        app.deals_offset,
+                                        app.deals_page_size,
+                                    ));
+                                }
+                            }
                             _ => {}
                         }
                     }

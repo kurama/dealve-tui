@@ -302,6 +302,13 @@ fn build_status_line(app: &App, dimmed: bool) -> Line<'static> {
     spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
     spans.push(Span::styled("efresh", Style::default().fg(text_color)));
 
+    // Load more (only show if more deals available)
+    if app.has_more_deals && !app.loading && !app.loading_more {
+        spans.push(Span::styled("└┘", Style::default().fg(border_color)));
+        spans.push(Span::styled("m", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("ore", Style::default().fg(text_color)));
+    }
+
     // Last element closing bracket
     spans.push(Span::styled("└", Style::default().fg(border_color)));
 
