@@ -1,9 +1,10 @@
 use dealve_api::ItadClient;
 use dealve_core::models::{Deal, Platform};
+use ratatui::widgets::ListState;
 
 pub struct App {
     pub deals: Vec<Deal>,
-    pub selected_index: usize,
+    pub list_state: ListState,
     pub should_quit: bool,
     pub loading: bool,
     pub error: Option<String>,
@@ -13,9 +14,12 @@ pub struct App {
 
 impl App {
     pub fn new(api_key: Option<String>) -> Self {
+        let mut list_state = ListState::default();
+        list_state.select(Some(0));
+
         Self {
             deals: vec![],
-            selected_index: 0,
+            list_state,
             should_quit: false,
             loading: false,
             error: None,
@@ -28,10 +32,10 @@ impl App {
         self.loading = true;
         self.error = None;
 
-        match self.client.get_deals("US", 20).await {
+        match self.client.get_deals("US", 50).await {
             Ok(deals) => {
                 self.deals = deals;
-                self.selected_index = 0;
+                self.list_state.select(Some(0));
             }
             Err(e) => {
                 self.error = Some(e.to_string());
@@ -46,35 +50,56 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if !self.deals.is_empty() {
-            self.selected_index = (self.selected_index + 1) % self.deals.len();
+        let filtered_count = self.filtered_deals().len();
+        if filtered_count > 0 {
+            let i = match self.list_state.selected() {
+                Some(i) => {
+                    if i >= filtered_count - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
+                }
+                None => 0,
+            };
+            self.list_state.select(Some(i));
         }
     }
 
     pub fn previous(&mut self) {
-        if !self.deals.is_empty() {
-            if self.selected_index > 0 {
-                self.selected_index -= 1;
-            } else {
-                self.selected_index = self.deals.len() - 1;
-            }
+        let filtered_count = self.filtered_deals().len();
+        if filtered_count > 0 {
+            let i = match self.list_state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        filtered_count - 1
+                    } else {
+                        i - 1
+                    }
+                }
+                None => 0,
+            };
+            self.list_state.select(Some(i));
         }
     }
 
     pub fn open_selected_deal(&self) {
-        if let Some(deal) = self.deals.get(self.selected_index) {
-            let _ = webbrowser::open(&deal.url);
+        if let Some(i) = self.list_state.selected() {
+            let filtered = self.filtered_deals();
+            if let Some(deal) = filtered.get(i) {
+                let _ = webbrowser::open(&deal.url);
+            }
         }
     }
 
     pub fn next_platform(&mut self) {
         self.platform_filter = self.platform_filter.next();
-        self.selected_index = 0;
+        self.list_state.select(Some(0));
     }
 
     pub fn previous_platform(&mut self) {
         self.platform_filter = self.platform_filter.previous();
-        self.selected_index = 0;
+        self.list_state.select(Some(0));
     }
 
     pub fn filtered_deals(&self) -> Vec<&Deal> {

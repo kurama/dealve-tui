@@ -18,17 +18,18 @@ async fn main() {
 
     println!("Fetching top 5 deals from IsThereAnyDeal...\n");
 
-    match client.get_deals("US", 5).await {
+    match client.get_deals("US", 20).await {
         Ok(deals) => {
             println!("Found {} deals:", deals.len());
             for (i, deal) in deals.iter().enumerate() {
                 println!(
-                    "{}. {} - ${:.2} (-{}%) @ {}",
+                    "{}. {} - ${:.2} (-{}%) @ {} (ID: {})",
                     i + 1,
                     deal.title,
                     deal.price.amount,
                     deal.price.discount,
-                    deal.shop.name
+                    deal.shop.name,
+                    deal.shop.id
                 );
             }
         }

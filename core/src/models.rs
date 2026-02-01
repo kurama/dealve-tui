@@ -23,10 +23,10 @@ impl Platform {
     pub fn shop_ids(&self) -> Option<Vec<&str>> {
         match self {
             Platform::All => None,
-            Platform::Steam => Some(vec!["steam"]),
-            Platform::EpicGames => Some(vec!["epic"]),
-            Platform::Gog => Some(vec!["gog"]),
-            Platform::HumbleStore => Some(vec!["humblestore"]),
+            Platform::Steam => Some(vec!["61"]),
+            Platform::EpicGames => Some(vec!["56"]),
+            Platform::Gog => Some(vec!["35"]),
+            Platform::HumbleStore => Some(vec!["52"]),
         }
     }
 

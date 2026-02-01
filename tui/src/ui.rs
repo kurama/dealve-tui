@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::app::App;
 
-pub fn render(frame: &mut Frame, app: &App) {
+pub fn render(frame: &mut Frame, app: &mut App) {
     let area = centered_rect(85, 90, frame.area());
 
     let chunks = Layout::default()
@@ -49,10 +49,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         } else {
             let items: Vec<ListItem> = filtered_deals
                 .iter()
-                .enumerate()
-                .map(|(i, deal)| {
-                let is_selected = i == app.selected_index;
-                let symbol = if is_selected { ">" } else { " " };
+                .map(|deal| {
 
                 let discount_bar = create_discount_bar(deal.price.discount);
 
@@ -70,7 +67,6 @@ pub fn render(frame: &mut Frame, app: &App) {
                 let discount_str = format!("-{}%", deal.price.discount);
 
                 let content = Line::from(vec![
-                    Span::raw(format!("{} ", symbol)),
                     Span::raw(format!("{:<50}", truncate(&deal.title, 50))),
                     Span::raw(format!("{:>8}", price_str)),
                     Span::raw("  "),
@@ -81,17 +77,16 @@ pub fn render(frame: &mut Frame, app: &App) {
                     Span::raw(format!("{:<13}", low_info)),
                 ]);
 
-                let mut item = ListItem::new(content);
-                if is_selected {
-                    item = item.style(Style::default().bg(Color::DarkGray));
-                }
-                    item
+                ListItem::new(content)
                 })
                 .collect();
 
             let deals_list = List::new(items)
-                .block(Block::default().borders(Borders::ALL));
-            frame.render_widget(deals_list, chunks[1]);
+                .block(Block::default().borders(Borders::ALL))
+                .highlight_style(Style::default().bg(Color::DarkGray))
+                .highlight_symbol("> ");
+
+            frame.render_stateful_widget(deals_list, chunks[1], &mut app.list_state);
         }
     }
 
