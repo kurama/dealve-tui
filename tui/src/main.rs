@@ -59,17 +59,26 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => app.quit(),
-                        KeyCode::Down | KeyCode::Char('j') => app.next(),
-                        KeyCode::Up | KeyCode::Char('k') => app.previous(),
-                        KeyCode::Left | KeyCode::Char('h') => app.previous_platform(),
-                        KeyCode::Right | KeyCode::Char('l') => app.next_platform(),
-                        KeyCode::Enter => app.open_selected_deal(),
-                        KeyCode::Char('r') => {
-                            app.load_deals().await;
+                    if app.show_platform_dropdown {
+                        match key.code {
+                            KeyCode::Esc | KeyCode::Char('f') => app.toggle_dropdown(),
+                            KeyCode::Down | KeyCode::Char('j') => app.dropdown_next(),
+                            KeyCode::Up | KeyCode::Char('k') => app.dropdown_previous(),
+                            KeyCode::Enter => app.dropdown_select(),
+                            _ => {}
                         }
-                        _ => {}
+                    } else {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+                            KeyCode::Down | KeyCode::Char('j') => app.next(),
+                            KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                            KeyCode::Char('f') => app.toggle_dropdown(),
+                            KeyCode::Enter => app.open_selected_deal(),
+                            KeyCode::Char('r') => {
+                                app.load_deals().await;
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }

@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect, Alignment},
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
 };
 
@@ -90,10 +90,53 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         }
     }
 
-    let help = Paragraph::new("[↑/↓] Navigate  [←/→] Filter  [Enter] Open  [r] Refresh  [q] Quit")
+    let help = Paragraph::new("[↑/↓] Navigate  [f] Filter  [Enter] Open  [r] Refresh  [q] Quit")
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(help, chunks[2]);
+
+    if app.show_platform_dropdown {
+        render_dropdown(frame, app, chunks[0]);
+    }
+}
+
+fn render_dropdown(frame: &mut Frame, app: &mut App, title_area: Rect) {
+    let dropdown_width = 20u16;
+    let max_visible = 15u16;
+    let dropdown_height = max_visible + 2;
+
+    let dropdown_x = title_area.x + 20;
+    let dropdown_y = title_area.y + title_area.height;
+
+    let frame_height = frame.area().height;
+    let available_height = frame_height.saturating_sub(dropdown_y);
+    let dropdown_height = dropdown_height.min(available_height);
+
+    let dropdown_area = Rect::new(
+        dropdown_x,
+        dropdown_y,
+        dropdown_width,
+        dropdown_height,
+    );
+
+    frame.render_widget(Clear, dropdown_area);
+
+    let items: Vec<ListItem> = App::platforms()
+        .iter()
+        .map(|platform| {
+            ListItem::new(format!("  {}", platform.name()))
+        })
+        .collect();
+
+    let mut list_state = ratatui::widgets::ListState::default();
+    list_state.select(Some(app.dropdown_selected));
+
+    let dropdown = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Platform"))
+        .highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_symbol("> ");
+
+    frame.render_stateful_widget(dropdown, dropdown_area, &mut list_state);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

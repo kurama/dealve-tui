@@ -9,8 +9,11 @@ pub struct App {
     pub loading: bool,
     pub error: Option<String>,
     pub platform_filter: Platform,
+    pub show_platform_dropdown: bool,
+    pub dropdown_selected: usize,
     client: ItadClient,
 }
+
 
 impl App {
     pub fn new(api_key: Option<String>) -> Self {
@@ -24,6 +27,8 @@ impl App {
             loading: false,
             error: None,
             platform_filter: Platform::All,
+            show_platform_dropdown: false,
+            dropdown_selected: 0,
             client: ItadClient::new(api_key),
         }
     }
@@ -92,24 +97,46 @@ impl App {
         }
     }
 
-    pub fn next_platform(&mut self) {
-        self.platform_filter = self.platform_filter.next();
-        self.list_state.select(Some(0));
-    }
-
-    pub fn previous_platform(&mut self) {
-        self.platform_filter = self.platform_filter.previous();
-        self.list_state.select(Some(0));
-    }
-
     pub fn filtered_deals(&self) -> Vec<&Deal> {
-        match self.platform_filter.shop_ids() {
+        match self.platform_filter.shop_id() {
             None => self.deals.iter().collect(),
-            Some(shop_ids) => self
+            Some(shop_id) => self
                 .deals
                 .iter()
-                .filter(|deal| shop_ids.iter().any(|&id| deal.shop.id == id))
+                .filter(|deal| deal.shop.id == shop_id.to_string())
                 .collect(),
         }
+    }
+
+    pub fn toggle_dropdown(&mut self) {
+        self.show_platform_dropdown = !self.show_platform_dropdown;
+        if self.show_platform_dropdown {
+            self.dropdown_selected = Platform::ALL
+                .iter()
+                .position(|&p| p == self.platform_filter)
+                .unwrap_or(0);
+        }
+    }
+
+    pub fn dropdown_next(&mut self) {
+        self.dropdown_selected = (self.dropdown_selected + 1) % Platform::ALL.len();
+    }
+
+    pub fn dropdown_previous(&mut self) {
+        if self.dropdown_selected == 0 {
+            self.dropdown_selected = Platform::ALL.len() - 1;
+        } else {
+            self.dropdown_selected -= 1;
+        }
+    }
+
+    pub fn dropdown_select(&mut self) {
+        self.platform_filter = Platform::ALL[self.dropdown_selected];
+        self.show_platform_dropdown = false;
+        self.list_state.select(Some(0));
+    }
+
+    pub fn platforms() -> &'static [Platform] {
+        &Platform::ALL
     }
 }
