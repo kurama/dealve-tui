@@ -1,5 +1,5 @@
 use dealve_api::ItadClient;
-use dealve_core::models::Deal;
+use dealve_core::models::{Deal, Platform};
 
 pub struct App {
     pub deals: Vec<Deal>,
@@ -7,6 +7,7 @@ pub struct App {
     pub should_quit: bool,
     pub loading: bool,
     pub error: Option<String>,
+    pub platform_filter: Platform,
     client: ItadClient,
 }
 
@@ -18,6 +19,7 @@ impl App {
             should_quit: false,
             loading: false,
             error: None,
+            platform_filter: Platform::All,
             client: ItadClient::new(api_key),
         }
     }
@@ -62,6 +64,27 @@ impl App {
     pub fn open_selected_deal(&self) {
         if let Some(deal) = self.deals.get(self.selected_index) {
             let _ = webbrowser::open(&deal.url);
+        }
+    }
+
+    pub fn next_platform(&mut self) {
+        self.platform_filter = self.platform_filter.next();
+        self.selected_index = 0;
+    }
+
+    pub fn previous_platform(&mut self) {
+        self.platform_filter = self.platform_filter.previous();
+        self.selected_index = 0;
+    }
+
+    pub fn filtered_deals(&self) -> Vec<&Deal> {
+        match self.platform_filter.shop_ids() {
+            None => self.deals.iter().collect(),
+            Some(shop_ids) => self
+                .deals
+                .iter()
+                .filter(|deal| shop_ids.iter().any(|&id| deal.shop.id == id))
+                .collect(),
         }
     }
 }

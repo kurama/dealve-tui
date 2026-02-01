@@ -63,6 +63,8 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                         KeyCode::Char('q') | KeyCode::Esc => app.quit(),
                         KeyCode::Down | KeyCode::Char('j') => app.next(),
                         KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                        KeyCode::Left | KeyCode::Char('h') => app.previous_platform(),
+                        KeyCode::Right | KeyCode::Char('l') => app.next_platform(),
                         KeyCode::Enter => app.open_selected_deal(),
                         KeyCode::Char('r') => {
                             app.load_deals().await;

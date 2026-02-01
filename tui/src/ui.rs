@@ -24,7 +24,8 @@ pub fn render(frame: &mut Frame, app: &App) {
         .borders(Borders::ALL)
         .title("─ Dealve TUI ─");
 
-    let title = Paragraph::new("🔥 Top Deals")
+    let filter_text = format!("🔥 Top Deals  [Filter: {}]", app.platform_filter.name());
+    let title = Paragraph::new(filter_text)
         .block(title_block);
     frame.render_widget(title, chunks[0]);
 
@@ -37,17 +38,19 @@ pub fn render(frame: &mut Frame, app: &App) {
         let error_msg = Paragraph::new(format!("Error: {}", error))
             .block(Block::default().borders(Borders::ALL).title("Error"));
         frame.render_widget(error_msg, chunks[1]);
-    } else if app.deals.is_empty() {
-        let empty = Paragraph::new("No deals found")
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
-        frame.render_widget(empty, chunks[1]);
     } else {
-        let items: Vec<ListItem> = app
-            .deals
-            .iter()
-            .enumerate()
-            .map(|(i, deal)| {
+        let filtered_deals = app.filtered_deals();
+
+        if filtered_deals.is_empty() {
+            let empty = Paragraph::new("No deals found for this platform")
+                .alignment(Alignment::Center)
+                .block(Block::default().borders(Borders::ALL));
+            frame.render_widget(empty, chunks[1]);
+        } else {
+            let items: Vec<ListItem> = filtered_deals
+                .iter()
+                .enumerate()
+                .map(|(i, deal)| {
                 let is_selected = i == app.selected_index;
                 let symbol = if is_selected { ">" } else { " " };
 
@@ -82,16 +85,17 @@ pub fn render(frame: &mut Frame, app: &App) {
                 if is_selected {
                     item = item.style(Style::default().bg(Color::DarkGray));
                 }
-                item
-            })
-            .collect();
+                    item
+                })
+                .collect();
 
-        let deals_list = List::new(items)
-            .block(Block::default().borders(Borders::ALL));
-        frame.render_widget(deals_list, chunks[1]);
+            let deals_list = List::new(items)
+                .block(Block::default().borders(Borders::ALL));
+            frame.render_widget(deals_list, chunks[1]);
+        }
     }
 
-    let help = Paragraph::new("[↑/↓] Navigate  [Enter] Open  [r] Refresh  [q] Quit")
+    let help = Paragraph::new("[↑/↓] Navigate  [←/→] Filter  [Enter] Open  [r] Refresh  [q] Quit")
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(help, chunks[2]);
