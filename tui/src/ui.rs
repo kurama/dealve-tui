@@ -80,7 +80,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
 
     if app.loading {
         let spinner = app.spinner_char();
-        let loading = Paragraph::new(format!("{} Loading deals...", spinner))
+        let padding = vertical_padding(area.height, 1);
+        let loading = Paragraph::new(format!("{}{} Loading deals...", padding, spinner))
             .alignment(Alignment::Center)
             .style(Style::default().fg(text_color))
             .block(Block::default()
@@ -105,7 +106,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     let filtered_deals = app.filtered_deals();
 
     if filtered_deals.is_empty() {
-        let empty = Paragraph::new("No deals found")
+        let padding = vertical_padding(area.height, 1);
+        let empty = Paragraph::new(format!("{}No deals found", padding))
             .alignment(Alignment::Center)
             .style(Style::default().fg(text_color))
             .block(Block::default()
@@ -202,7 +204,8 @@ fn render_game_details(frame: &mut Frame, app: &App, area: Rect, dimmed: bool) {
     let selected_deal = app.selected_deal();
 
     if selected_deal.is_none() {
-        let empty = Paragraph::new("Select a deal to view details")
+        let padding = vertical_padding(area.height, 1);
+        let empty = Paragraph::new(format!("{}Select a deal to view details", padding))
             .alignment(Alignment::Center)
             .style(Style::default().fg(secondary_color))
             .block(block);
@@ -331,15 +334,16 @@ fn render_price_chart(frame: &mut Frame, _app: &App, area: Rect, dimmed: bool) {
         .title(Span::styled(" Price History ", Style::default().fg(title_color)));
 
     // Price history chart placeholder
-    let content = vec![
+    let content_lines = vec![
+        "Price history chart coming soon...",
         "",
-        "  Price history chart coming soon...",
-        "",
-        "  Visit IsThereAnyDeal.com for full",
-        "  price history information.",
+        "Visit IsThereAnyDeal.com for full",
+        "price history information.",
     ];
+    let padding = vertical_padding(area.height, content_lines.len() as u16);
+    let content = format!("{}{}", padding, content_lines.join("\n"));
 
-    let placeholder = Paragraph::new(content.join("\n"))
+    let placeholder = Paragraph::new(content)
         .alignment(Alignment::Center)
         .style(Style::default().fg(text_color))
         .block(block);
@@ -611,6 +615,13 @@ fn render_dropdown(frame: &mut Frame, app: &mut App, list_area: Rect) {
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(dropdown, dropdown_area, &mut list_state);
+}
+
+/// Calculate vertical padding to center text within an area
+fn vertical_padding(area_height: u16, text_lines: u16) -> String {
+    let inner_height = area_height.saturating_sub(2); // Account for borders
+    let padding = inner_height.saturating_sub(text_lines) / 2;
+    "\n".repeat(padding as usize)
 }
 
 fn truncate(s: &str, max_len: usize) -> String {
