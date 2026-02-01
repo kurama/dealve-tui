@@ -2,7 +2,43 @@ use dealve_api::ItadClient;
 use dealve_core::models::{Deal, Platform};
 use ratatui::widgets::ListState;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuItem {
+    Browse,
+    Options,
+    Keybinds,
+    Quit,
+}
+
+impl MenuItem {
+    pub const ALL: &'static [MenuItem] = &[
+        MenuItem::Browse,
+        MenuItem::Options,
+        MenuItem::Keybinds,
+        MenuItem::Quit,
+    ];
+
+    pub fn name(&self) -> &str {
+        match self {
+            MenuItem::Browse => "BROWSE DEALS",
+            MenuItem::Options => "OPTIONS",
+            MenuItem::Keybinds => "KEYBINDS",
+            MenuItem::Quit => "QUIT",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Popup {
+    None,
+    Options,
+    Keybinds,
+}
+
 pub struct App {
+    pub show_menu: bool,
+    pub menu_selected: usize,
+    pub popup: Popup,
     pub deals: Vec<Deal>,
     pub list_state: ListState,
     pub should_quit: bool,
@@ -21,6 +57,9 @@ impl App {
         list_state.select(Some(0));
 
         Self {
+            show_menu: false,
+            menu_selected: 0,
+            popup: Popup::None,
             deals: vec![],
             list_state,
             should_quit: false,
@@ -140,5 +179,43 @@ impl App {
 
     pub fn platforms() -> &'static [Platform] {
         &Platform::ALL
+    }
+
+    pub fn toggle_menu(&mut self) {
+        self.show_menu = !self.show_menu;
+        if self.show_menu {
+            self.menu_selected = 0;
+        }
+    }
+
+    pub fn menu_next(&mut self) {
+        self.menu_selected = (self.menu_selected + 1) % MenuItem::ALL.len();
+    }
+
+    pub fn menu_previous(&mut self) {
+        if self.menu_selected == 0 {
+            self.menu_selected = MenuItem::ALL.len() - 1;
+        } else {
+            self.menu_selected -= 1;
+        }
+    }
+
+    pub async fn menu_select(&mut self) {
+        match MenuItem::ALL[self.menu_selected] {
+            MenuItem::Browse => {
+                self.show_menu = false;
+            }
+            MenuItem::Options => {
+                self.popup = Popup::Options;
+            }
+            MenuItem::Keybinds => {
+                self.popup = Popup::Keybinds;
+            }
+            MenuItem::Quit => self.quit(),
+        }
+    }
+
+    pub fn close_popup(&mut self) {
+        self.popup = Popup::None;
     }
 }

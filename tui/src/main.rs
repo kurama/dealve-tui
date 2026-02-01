@@ -10,7 +10,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::{env, io::{stdout, Stdout}};
 
-use app::App;
+use app::{App, Popup};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -59,7 +59,21 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    if app.show_platform_dropdown {
+                    if app.popup != Popup::None {
+                        if key.code == KeyCode::Esc {
+                            app.close_popup();
+                        }
+                    } else if app.show_menu {
+                        match key.code {
+                            KeyCode::Esc => app.toggle_menu(),
+                            KeyCode::Down | KeyCode::Char('j') => app.menu_next(),
+                            KeyCode::Up | KeyCode::Char('k') => app.menu_previous(),
+                            KeyCode::Enter => {
+                                app.menu_select().await;
+                            }
+                            _ => {}
+                        }
+                    } else if app.show_platform_dropdown {
                         match key.code {
                             KeyCode::Esc | KeyCode::Char('f') => app.toggle_dropdown(),
                             KeyCode::Down | KeyCode::Char('j') => app.dropdown_next(),
@@ -71,7 +85,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                         }
                     } else {
                         match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+                            KeyCode::Esc => app.toggle_menu(),
                             KeyCode::Down | KeyCode::Char('j') => app.next(),
                             KeyCode::Up | KeyCode::Char('k') => app.previous(),
                             KeyCode::Char('f') => app.toggle_dropdown(),
