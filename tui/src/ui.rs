@@ -79,7 +79,8 @@ fn render_deals_list(frame: &mut Frame, app: &mut App, area: Rect, dimmed: bool)
     let title_color = if dimmed { TEXT_DIMMED } else { PURPLE_LIGHT };
 
     if app.loading {
-        let loading = Paragraph::new("Loading deals...")
+        let spinner = app.spinner_char();
+        let loading = Paragraph::new(format!("{} Loading deals...", spinner))
             .alignment(Alignment::Center)
             .style(Style::default().fg(text_color))
             .block(Block::default()

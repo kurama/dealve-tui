@@ -126,6 +126,8 @@ pub struct App {
     pub loading_game_info: Option<String>,
     // Options state
     pub options: OptionsState,
+    // Animation frame counter for spinner
+    pub spinner_frame: usize,
     client: ItadClient,
 }
 
@@ -155,27 +157,9 @@ impl App {
             game_info_cache: HashMap::new(),
             loading_game_info: None,
             options,
+            spinner_frame: 0,
             client: ItadClient::new(api_key),
         }
-    }
-
-    pub async fn load_deals(&mut self) {
-        self.loading = true;
-        self.error = None;
-
-        let shop_id = self.platform_filter.shop_id();
-
-        match self.client.get_deals("US", 50, shop_id).await {
-            Ok(deals) => {
-                self.deals = deals;
-                self.list_state.select(Some(0));
-            }
-            Err(e) => {
-                self.error = Some(e.to_string());
-            }
-        }
-
-        self.loading = false;
     }
 
     pub fn quit(&mut self) {
@@ -265,13 +249,30 @@ impl App {
         }
     }
 
-    pub async fn dropdown_select(&mut self) {
+    /// Prepare dropdown selection and set loading state (loading happens in main loop)
+    pub fn dropdown_select_prepare(&mut self) {
         let enabled = self.enabled_platforms();
         if let Some(&platform) = enabled.get(self.dropdown_selected) {
             self.platform_filter = platform;
         }
         self.show_platform_dropdown = false;
-        self.load_deals().await;
+        self.loading = true;
+    }
+
+    pub fn set_loading(&mut self, loading: bool) {
+        self.loading = loading;
+        if loading {
+            self.spinner_frame = 0;
+        }
+    }
+
+    pub fn tick_spinner(&mut self) {
+        self.spinner_frame = (self.spinner_frame + 1) % 10;
+    }
+
+    pub fn spinner_char(&self) -> char {
+        const SPINNER_FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        SPINNER_FRAMES[self.spinner_frame]
     }
 
     pub fn toggle_menu(&mut self) {
