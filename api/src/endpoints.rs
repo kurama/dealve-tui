@@ -129,4 +129,28 @@ impl ItadClient {
 
         Ok(points)
     }
+
+    /// Validate an API key by making a lightweight request
+    /// Returns Ok(()) if valid, Err with specific error otherwise
+    pub async fn validate_api_key(api_key: &str) -> Result<()> {
+        let client = reqwest::Client::new();
+        let url = "https://api.isthereanydeal.com/deals/v2";
+
+        let response = client
+            .get(url)
+            .query(&[("key", api_key), ("limit", "1"), ("country", "US")])
+            .send()
+            .await
+            .map_err(|e| DealveError::Network(e.to_string()))?;
+
+        match response.status().as_u16() {
+            200..=299 => Ok(()),
+            401 | 403 => Err(DealveError::Api("Invalid API key".to_string())),
+            429 => Err(DealveError::Api("Rate limited - please wait and try again".to_string())),
+            _ => {
+                let body = response.text().await.unwrap_or_default();
+                Err(DealveError::Api(format!("API error: {}", body)))
+            }
+        }
+    }
 }

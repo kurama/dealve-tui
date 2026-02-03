@@ -17,6 +17,9 @@ pub struct Config {
     /// Debounce delay (ms) before loading game info after selection change
     #[serde(default = "default_game_info_delay")]
     pub game_info_delay_ms: u64,
+    /// IsThereAnyDeal API key (optional, can also be set via ITAD_API_KEY env var)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
 }
 
 fn default_region() -> String {
@@ -39,6 +42,7 @@ impl Default for Config {
             region: default_region(),
             deals_page_size: default_page_size(),
             game_info_delay_ms: default_game_info_delay(),
+            api_key: None,
         }
     }
 }
@@ -111,5 +115,26 @@ impl Config {
             .map(|p| p.name().to_string())
             .collect();
         self.region = region.code().to_string();
+    }
+
+    /// Set the API key and save to config
+    pub fn set_api_key(&mut self, key: String) -> Result<(), std::io::Error> {
+        self.api_key = Some(key);
+        self.save()
+    }
+
+    /// Load API key from environment variable or config file
+    /// Priority: 1. ITAD_API_KEY env var, 2. config file
+    pub fn load_api_key() -> Option<String> {
+        // Priority 1: Environment variable
+        if let Ok(key) = std::env::var("ITAD_API_KEY") {
+            if !key.is_empty() {
+                return Some(key);
+            }
+        }
+
+        // Priority 2: Config file
+        let config = Self::load();
+        config.api_key.filter(|k| !k.is_empty())
     }
 }

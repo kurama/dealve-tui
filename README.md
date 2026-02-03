@@ -1,19 +1,45 @@
 # Dealve
 
-A terminal UI for browsing the best game deals, powered by [IsThereAnyDeal](https://isthereanydeal.com).
+The fastest way to browse game deals from your terminal.
 
-**Dealve** = Deal + Delve
+<!-- ![Demo](examples/demo.gif)
 
-## Features
+[![crates.io](https://img.shields.io/crates/v/dealve-tui.svg)](https://crates.io/crates/dealve-tui) -->
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
 
-- Browse top game deals
-- Filter by store
+**Dealve** simplifies finding the best game deals across Steam, GOG, Humble Bundle, Epic Games, and more - all from your terminal. Powered by [IsThereAnyDeal](https://isthereanydeal.com).
+
+## Pre-requisites
+
+You need Rust and Cargo installed. If you don't have them, install via [rustup](https://rustup.rs/).
+
+Rust version 1.70 or later is required. Check your version:
+
+```bash
+rustc --version
+```
+
+Update if needed:
+
+```bash
+rustup update
+```
 
 ## Installation
 
 ```bash
+cargo install dealve-tui
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/kurama/dealve-tui
+cd dealve-tui
 cargo install --path tui
 ```
+
+This installs the `dealve` binary to `~/.cargo/bin/`.
 
 ## Usage
 
@@ -21,15 +47,11 @@ cargo install --path tui
 dealve
 ```
 
-### Keyboard Shortcuts
-- `↑/k` - Move up
-- `↓/j` - Move down
-- `q/Esc` - Quit
-- `r` - Refresh deals
+On first launch, you'll be guided through a quick setup to configure your [IsThereAnyDeal API key](https://isthereanydeal.com/apps/) (free).
 
-## Development
+Configuration is stored in `~/.config/dealve/config.json`.
 
-### Project Structure
+## Project Structure
 
 ```
 dealve-tui/
@@ -38,30 +60,8 @@ dealve-tui/
 └── tui/     # Terminal UI application
 ```
 
-### Building
-
-```bash
-cargo build
-```
-
-### Running
-
-```bash
-cargo run --bin dealve
-```
-
-## Contributing
-
-Contributions are welcome! This project uses:
-- Rust 2021 edition
-- [Ratatui](https://github.com/ratatui-org/ratatui) for the TUI
-- [tokio](https://tokio.rs) for async runtime
-- Workspace structure for modularity
-
 ## License
 
-Licensed under either of:
-- MIT License
-- Apache License, Version 2.0
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
 
-at your option.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

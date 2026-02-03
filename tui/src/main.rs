@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod onboarding;
 mod ui;
 
 use anyhow::Result;
@@ -10,7 +11,7 @@ use crossterm::{
 };
 use dealve_core::models::{Deal, Platform};
 use ratatui::{backend::CrosstermBackend, prelude::Color, layout::Rect, Terminal};
-use std::{env, io::{stdout, Stdout}, time::Instant};
+use std::{io::{stdout, Stdout}, time::Instant};
 use tachyonfx::{fx, Effect, EffectTimer, Interpolation, Motion};
 use tachyonfx::fx::EvolveSymbolSet;
 use tachyonfx::pattern::RadialPattern;
@@ -24,16 +25,29 @@ type DealsLoadTask = JoinHandle<dealve_core::Result<Vec<Deal>>>;
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
 
-    let api_key = env::var("ITAD_API_KEY").ok();
-    if api_key.is_none() {
-        eprintln!("Error: ITAD_API_KEY not set.");
-        eprintln!("Create a .env file with:");
-        eprintln!("ITAD_API_KEY=your_key_here");
-        return Ok(());
-    }
+    // Try to load API key from env or config
+    let api_key = config::Config::load_api_key();
 
     let mut terminal = setup_terminal()?;
-    let result = run(&mut terminal, api_key).await;
+
+    let result = if api_key.is_none() {
+        // No API key found - run onboarding
+        match onboarding::run_onboarding(&mut terminal).await {
+            Ok(Some(key)) => {
+                // User completed onboarding, start the app
+                run(&mut terminal, Some(key)).await
+            }
+            Ok(None) => {
+                // User quit during onboarding
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    } else {
+        // API key found - start app directly
+        run(&mut terminal, api_key).await
+    };
+
     restore_terminal()?;
     result
 }
@@ -53,8 +67,7 @@ fn restore_terminal() -> Result<()> {
 }
 
 /// Spawn a background task to load deals (non-blocking)
-fn spawn_deals_load(platform_filter: Platform, region_code: String, offset: usize, page_size: usize) -> DealsLoadTask {
-    let api_key = env::var("ITAD_API_KEY").ok();
+fn spawn_deals_load(api_key: Option<String>, platform_filter: Platform, region_code: String, offset: usize, page_size: usize) -> DealsLoadTask {
     tokio::spawn(async move {
         let client = dealve_api::ItadClient::new(api_key);
         let shop_id = platform_filter.shop_id();
@@ -114,6 +127,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
     // Start initial load (non-blocking)
     app.set_loading(true);
     let mut load_task: Option<DealsLoadTask> = Some(spawn_deals_load(
+        app.api_key.clone(),
         app.platform_filter,
         app.region.code().to_string(),
         0,
@@ -194,6 +208,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
         if app.should_load_more() && load_more_task.is_none() && load_task.is_none() {
             app.loading_more = true;
             load_more_task = Some(spawn_deals_load(
+                app.api_key.clone(),
                 app.platform_filter,
                 app.region.code().to_string(),
                 app.deals_offset,
@@ -233,6 +248,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                                     app.reset_pagination();
                                     app.set_loading(true);
                                     load_task = Some(spawn_deals_load(
+                                        app.api_key.clone(),
                                         app.platform_filter,
                                         app.region.code().to_string(),
                                         0,
@@ -257,6 +273,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                                         app.reset_pagination();
                                         app.set_loading(true);
                                         load_task = Some(spawn_deals_load(
+                                            app.api_key.clone(),
                                             app.platform_filter,
                                             app.region.code().to_string(),
                                             0,
@@ -336,6 +353,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                                     app.reset_pagination();
                                     app.set_loading(true);
                                     load_task = Some(spawn_deals_load(
+                                        app.api_key.clone(),
                                         app.platform_filter,
                                         app.region.code().to_string(),
                                         0,

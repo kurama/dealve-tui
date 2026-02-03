@@ -193,6 +193,8 @@ pub struct App {
     // Filter state
     pub filter_active: bool,
     pub filter_text: String,
+    // API client
+    pub api_key: Option<String>,
     client: ItadClient,
 }
 
@@ -235,6 +237,7 @@ impl App {
             game_info_delay_ms: config.game_info_delay_ms,
             filter_active: false,
             filter_text: String::new(),
+            api_key: api_key.clone(),
             client: ItadClient::new(api_key),
         }
     }
