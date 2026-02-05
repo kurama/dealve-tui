@@ -96,48 +96,67 @@ impl PriceFilterState {
 pub enum SortCriteria {
     #[default]
     Price,
-    Cut,      // Discount percentage
-    Release,  // Release date (client-side only)
+    Cut,         // Discount percentage
+    Hottest,     // Hottest games
+    ReleaseDate, // Release date
+    Expiring,    // Expiring soon
+    Popular,     // Most popular
 }
 
 impl SortCriteria {
     pub const ALL: &'static [SortCriteria] = &[
         SortCriteria::Price,
         SortCriteria::Cut,
-        SortCriteria::Release,
+        SortCriteria::Hottest,
+        SortCriteria::ReleaseDate,
+        SortCriteria::Expiring,
+        SortCriteria::Popular,
     ];
 
     pub fn name(&self) -> &str {
         match self {
             SortCriteria::Price => "Price",
             SortCriteria::Cut => "Cut",
-            SortCriteria::Release => "Release",
+            SortCriteria::Hottest => "Hottest",
+            SortCriteria::ReleaseDate => "Release",
+            SortCriteria::Expiring => "Expiring",
+            SortCriteria::Popular => "Popular",
         }
     }
 
     pub fn next(&self) -> Self {
         match self {
             SortCriteria::Price => SortCriteria::Cut,
-            SortCriteria::Cut => SortCriteria::Release,
-            SortCriteria::Release => SortCriteria::Price,
+            SortCriteria::Cut => SortCriteria::Hottest,
+            SortCriteria::Hottest => SortCriteria::ReleaseDate,
+            SortCriteria::ReleaseDate => SortCriteria::Expiring,
+            SortCriteria::Expiring => SortCriteria::Popular,
+            SortCriteria::Popular => SortCriteria::Price,
         }
     }
 
     pub fn prev(&self) -> Self {
         match self {
-            SortCriteria::Price => SortCriteria::Release,
+            SortCriteria::Price => SortCriteria::Popular,
             SortCriteria::Cut => SortCriteria::Price,
-            SortCriteria::Release => SortCriteria::Cut,
+            SortCriteria::Hottest => SortCriteria::Cut,
+            SortCriteria::ReleaseDate => SortCriteria::Hottest,
+            SortCriteria::Expiring => SortCriteria::ReleaseDate,
+            SortCriteria::Popular => SortCriteria::Expiring,
         }
     }
 
-    /// Returns the API sort parameter, None if client-side only
-    pub fn api_param(&self, ascending: bool) -> Option<String> {
-        match self {
-            SortCriteria::Price => Some(if ascending { "price".to_string() } else { "-price".to_string() }),
-            SortCriteria::Cut => Some(if ascending { "cut".to_string() } else { "-cut".to_string() }),
-            SortCriteria::Release => None, // Client-side only
-        }
+    /// Returns the API sort parameter
+    pub fn api_param(&self, ascending: bool) -> String {
+        let base = match self {
+            SortCriteria::Price => "price",
+            SortCriteria::Cut => "cut",
+            SortCriteria::Hottest => "hot",
+            SortCriteria::ReleaseDate => "release-date",
+            SortCriteria::Expiring => "expiry",
+            SortCriteria::Popular => "rank",
+        };
+        if ascending { base.to_string() } else { format!("-{}", base) }
     }
 }
 
@@ -177,7 +196,7 @@ impl SortState {
         format!("{} {}", self.criteria.name(), self.direction.arrow())
     }
 
-    pub fn api_param(&self) -> Option<String> {
+    pub fn api_param(&self) -> String {
         self.criteria.api_param(self.direction == SortDirection::Ascending)
     }
 }
@@ -436,49 +455,28 @@ impl App {
             deals.retain(|deal| self.price_filter.matches(deal.price.amount));
         }
 
-        // Client-side sorting only for Release (Price/Cut come pre-sorted from API)
-        if self.sort_state.criteria == SortCriteria::Release {
-            // Sort by title alphabetically as a proxy for release (we don't have release date)
-            // TODO: Add release date to Deal struct when available from API
-            match self.sort_state.direction {
-                SortDirection::Ascending => {
-                    deals.sort_by(|a, b| a.title.cmp(&b.title));
-                }
-                SortDirection::Descending => {
-                    deals.sort_by(|a, b| b.title.cmp(&a.title));
-                }
-            }
-        }
-
         deals
     }
 
-    /// Toggle sort direction (s key)
+    /// Toggle sort direction (s key) - always requires API reload
     pub fn toggle_sort_direction(&mut self) -> bool {
         self.sort_state.direction = self.sort_state.direction.toggle();
         self.select(Some(0));
-        // Return true if API reload is needed (Price/Cut)
-        self.sort_state.criteria != SortCriteria::Release
+        true
     }
 
-    /// Change sort criteria to next (right arrow)
+    /// Change sort criteria to next (right arrow) - always requires API reload
     pub fn next_sort_criteria(&mut self) -> bool {
-        let old_criteria = self.sort_state.criteria;
         self.sort_state.criteria = self.sort_state.criteria.next();
         self.select(Some(0));
-        // Return true if API reload is needed (changed to/from Release)
-        old_criteria == SortCriteria::Release || self.sort_state.criteria == SortCriteria::Release
-            || old_criteria != self.sort_state.criteria
+        true
     }
 
-    /// Change sort criteria to previous (left arrow)
+    /// Change sort criteria to previous (left arrow) - always requires API reload
     pub fn prev_sort_criteria(&mut self) -> bool {
-        let old_criteria = self.sort_state.criteria;
         self.sort_state.criteria = self.sort_state.criteria.prev();
         self.select(Some(0));
-        // Return true if API reload is needed
-        old_criteria == SortCriteria::Release || self.sort_state.criteria == SortCriteria::Release
-            || old_criteria != self.sort_state.criteria
+        true
     }
 
     /// Activate filter input mode

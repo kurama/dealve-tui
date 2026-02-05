@@ -67,11 +67,11 @@ fn restore_terminal() -> Result<()> {
 }
 
 /// Spawn a background task to load deals (non-blocking)
-fn spawn_deals_load(api_key: Option<String>, platform_filter: Platform, region_code: String, offset: usize, page_size: usize, sort: Option<String>) -> DealsLoadTask {
+fn spawn_deals_load(api_key: Option<String>, platform_filter: Platform, region_code: String, offset: usize, page_size: usize, sort: String) -> DealsLoadTask {
     tokio::spawn(async move {
         let client = dealve_api::ItadClient::new(api_key);
         let shop_id = platform_filter.shop_id();
-        client.get_deals(&region_code, page_size, offset, shop_id, sort.as_deref()).await
+        client.get_deals(&region_code, page_size, offset, shop_id, Some(&sort)).await
     })
 }
 
