@@ -187,9 +187,10 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
             last_selection_change = std::time::Instant::now();
             pending_game_info_load = true;
 
-            // Trigger sweep-in effect for deals list (left panel = 50% width)
+            // Trigger sweep-in effect for deals list inner area (excluding status bar)
             let term_size = terminal.size()?;
-            let deals_area = Rect::new(0, 0, term_size.width / 2, term_size.height);
+            // Exclude top border (1), bottom border (1), and status line area
+            let deals_inner = Rect::new(1, 1, term_size.width / 2 - 2, term_size.height.saturating_sub(2));
             effects.push((
                 fx::sweep_in(
                     Motion::UpToDown,
@@ -198,7 +199,7 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
                     Color::Rgb(20, 15, 30),  // BG_DARK color
                     (600, Interpolation::QuadOut),  // 600ms with ease-out
                 ),
-                deals_area,
+                deals_inner,
             ));
         }
 
