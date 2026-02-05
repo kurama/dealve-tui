@@ -1,5 +1,5 @@
 use dealve_api::ItadClient;
-use dealve_core::models::{Deal, GameInfo, Platform, Region};
+use dealve_core::models::{Deal, GameInfo, Platform, PriceHistoryPoint, Region};
 use ratatui::widgets::{ListState, TableState};
 use std::collections::{HashMap, HashSet};
 
@@ -311,6 +311,9 @@ pub struct App {
     // Game info cache and loading state
     pub game_info_cache: HashMap<String, GameInfo>,
     pub loading_game_info: Option<String>,
+    // Price history cache and loading state
+    pub price_history_cache: HashMap<String, Vec<PriceHistoryPoint>>,
+    pub loading_price_history: Option<String>,
     // Options state
     pub options: OptionsState,
     // Animation frame counter for spinner
@@ -364,6 +367,8 @@ impl App {
             region,
             game_info_cache: HashMap::new(),
             loading_game_info: None,
+            price_history_cache: HashMap::new(),
+            loading_price_history: None,
             options,
             spinner_frame: 0,
             sort_state: SortState::default(),
@@ -907,5 +912,37 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Check if we need to load price history for the selected deal
+    pub fn needs_price_history_load(&self) -> Option<String> {
+        let deal = self.selected_deal()?;
+
+        // Already loaded or currently loading
+        if self.price_history_cache.contains_key(&deal.id) {
+            return None;
+        }
+        if self.loading_price_history.as_ref() == Some(&deal.id) {
+            return None;
+        }
+
+        Some(deal.id.clone())
+    }
+
+    pub fn start_loading_price_history(&mut self, game_id: String) {
+        self.loading_price_history = Some(game_id);
+    }
+
+    pub fn finish_loading_price_history(&mut self, game_id: String, history: Vec<PriceHistoryPoint>) {
+        self.price_history_cache.insert(game_id.clone(), history);
+        if self.loading_price_history.as_ref() == Some(&game_id) {
+            self.loading_price_history = None;
+        }
+    }
+
+    /// Get price history for the selected deal if available
+    pub fn selected_price_history(&self) -> Option<&Vec<PriceHistoryPoint>> {
+        let deal = self.selected_deal()?;
+        self.price_history_cache.get(&deal.id)
     }
 }

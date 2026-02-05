@@ -88,6 +88,7 @@ impl ItadClient {
         Ok(GameInfo::from(info_response))
     }
 
+    /// Get price history for a game (max 1 year of data)
     pub async fn get_price_history(&self, game_id: &str, country: &str) -> Result<Vec<PriceHistoryPoint>> {
         let api_key = self.api_key().ok_or_else(|| {
             DealveError::Config("API key is required".to_string())
@@ -95,10 +96,19 @@ impl ItadClient {
 
         let url = format!("{}/games/history/v2", self.base_url());
 
+        // Request data from 1 year ago (ISO 8601 format)
+        let one_year_ago = chrono::Utc::now() - chrono::Duration::days(365);
+        let since = one_year_ago.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
         let response = self
             .client()
             .get(&url)
-            .query(&[("key", api_key), ("id", game_id), ("country", country)])
+            .query(&[
+                ("key", api_key.as_ref()),
+                ("id", game_id),
+                ("country", country),
+                ("since", since.as_str()),
+            ])
             .send()
             .await
             .map_err(|e| DealveError::Network(e.to_string()))?;
@@ -117,7 +127,9 @@ impl ItadClient {
             .await
             .map_err(|e| DealveError::Parse(e.to_string()))?;
 
-        let points: Vec<PriceHistoryPoint> = history_items
+        // Convert to our model, filtering out items without deals
+        // and sorting by timestamp (oldest first for charting)
+        let mut points: Vec<PriceHistoryPoint> = history_items
             .into_iter()
             .filter_map(|item| {
                 let deal = item.deal?;
@@ -131,6 +143,9 @@ impl ItadClient {
                 })
             })
             .collect();
+
+        // Sort by timestamp ascending (oldest first)
+        points.sort_by_key(|p| p.timestamp);
 
         Ok(points)
     }

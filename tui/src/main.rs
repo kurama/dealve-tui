@@ -9,7 +9,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use dealve_core::models::{Deal, Platform};
+use dealve_core::models::{Deal, Platform, PriceHistoryPoint};
 use ratatui::{backend::CrosstermBackend, prelude::Color, layout::Rect, Terminal};
 use std::{io::{stdout, Stdout}, time::Instant};
 use tachyonfx::{fx, Effect, EffectTimer, Interpolation, Motion};
@@ -20,6 +20,7 @@ use tokio::task::JoinHandle;
 use app::{App, Popup};
 
 type DealsLoadTask = JoinHandle<dealve_core::Result<Vec<Deal>>>;
+type PriceHistoryTask = JoinHandle<(String, dealve_core::Result<Vec<PriceHistoryPoint>>)>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -142,6 +143,9 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
     let mut last_selection_change = Instant::now();
     let mut pending_game_info_load = false;
 
+    // Task for loading price history
+    let mut price_history_task: Option<PriceHistoryTask> = None;
+
     // Tachyonfx effects for animations
     let mut effects: Vec<(Effect, Rect)> = Vec::new();
     let mut last_frame_time = Instant::now();
@@ -229,6 +233,33 @@ async fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>, api_key: Option<
         if pending_game_info_load && !app.loading && effects.is_empty() && last_selection_change.elapsed() >= std::time::Duration::from_millis(app.game_info_delay_ms) {
             pending_game_info_load = false;
             app.load_game_info_for_selected().await;
+        }
+
+        // Check if price history task completed
+        if let Some(task) = price_history_task.as_mut() {
+            if task.is_finished() {
+                let task = price_history_task.take().unwrap();
+                if let Ok((game_id, result)) = task.await {
+                    match result {
+                        Ok(history) => app.finish_loading_price_history(game_id, history),
+                        Err(_) => app.finish_loading_price_history(game_id, vec![]),
+                    }
+                }
+            }
+        }
+
+        // Check if we should load price history (after game info is loaded)
+        if price_history_task.is_none() && !app.loading && effects.is_empty() {
+            if let Some(game_id) = app.needs_price_history_load() {
+                app.start_loading_price_history(game_id.clone());
+                let api_key = app.api_key.clone();
+                let region_code = app.region.code().to_string();
+                price_history_task = Some(tokio::spawn(async move {
+                    let client = dealve_api::ItadClient::new(api_key);
+                    let result = client.get_price_history(&game_id, &region_code).await;
+                    (game_id, result)
+                }));
+            }
         }
 
         // Use shorter poll time during animations for smoother rendering (~60 FPS)

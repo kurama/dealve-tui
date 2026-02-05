@@ -106,3 +106,22 @@ pub struct PriceHistoryItem {
 pub struct HistoryDeal {
     pub price: PriceInfo,
 }
+
+impl PriceHistoryItem {
+    /// Convert to core model, parsing the ISO timestamp to unix timestamp
+    pub fn to_price_history_point(&self) -> Option<dealve_core::models::PriceHistoryPoint> {
+        let deal = self.deal.as_ref()?;
+
+        // Parse ISO 8601 timestamp to unix timestamp
+        // Format: "2021-12-17T00:20:46+01:00"
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&self.timestamp)
+            .map(|dt| dt.timestamp())
+            .unwrap_or(0);
+
+        Some(dealve_core::models::PriceHistoryPoint {
+            timestamp,
+            price: deal.price.amount,
+            shop_name: self.shop.name.clone(),
+        })
+    }
+}
