@@ -54,10 +54,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 fn render_main(frame: &mut Frame, app: &mut App, dimmed: bool) {
     let area = frame.area();
 
-    // Split horizontal: 50% left (deals), 50% right (details + chart)
+    // Split horizontal: 55% left (deals), 45% right (details + chart)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
         .split(area);
 
     let left_panel = main_chunks[0];
