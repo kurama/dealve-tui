@@ -634,9 +634,8 @@ fn render_price_chart_empty(
     text_color: Color,
     message: &str,
 ) {
-    let content_lines = vec![message];
-    let padding = vertical_padding(area.height, content_lines.len() as u16);
-    let content = format!("{}{}", padding, content_lines.join("\n"));
+    let padding = vertical_padding(area.height, 1);
+    let content = format!("{}{}", padding, message);
 
     let placeholder = Paragraph::new(content)
         .alignment(Alignment::Center)

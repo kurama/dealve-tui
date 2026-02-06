@@ -759,12 +759,11 @@ pub async fn run_onboarding(
                         OnboardingStep::Validating => {
                             // No input during validation
                         }
-                        OnboardingStep::Success => match key.code {
-                            KeyCode::Enter => {
+                        OnboardingStep::Success => {
+                            if key.code == KeyCode::Enter {
                                 return Ok(Some(state.api_key_input));
                             }
-                            _ => {}
-                        },
+                        }
                         OnboardingStep::Failed { .. } => match key.code {
                             KeyCode::Enter => {
                                 state.step = OnboardingStep::ApiKeyEntry;

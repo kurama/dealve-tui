@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 /// Supported countries for deal filtering (ISO 3166-1 alpha-2 codes)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Region {
+    #[default]
     FR, // France
     DE, // Germany
     US, // United States
@@ -77,12 +78,6 @@ impl Region {
             "UK" => Some(Region::GB),
             _ => None,
         }
-    }
-}
-
-impl Default for Region {
-    fn default() -> Self {
-        Region::FR // Default to France
     }
 }
 
@@ -265,7 +260,7 @@ pub struct PriceHistoryPoint {
 }
 
 /// Store/shop information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Shop {
     pub id: String,
     pub name: String,
@@ -285,15 +280,6 @@ pub struct DealFilter {
     pub shop_ids: Option<Vec<String>>,
     pub country: String,
     pub limit: usize,
-}
-
-impl Default for Shop {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-        }
-    }
 }
 
 impl Default for Price {

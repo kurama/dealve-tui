@@ -114,7 +114,7 @@ impl ItadClient {
             .client()
             .get(&url)
             .query(&[
-                ("key", api_key.as_ref()),
+                ("key", api_key),
                 ("id", game_id),
                 ("country", country),
                 ("since", since.as_str()),
