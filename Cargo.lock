@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "dealve-api"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "dealve-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "serde",
@@ -386,7 +386,7 @@ dependencies = [
 
 [[package]]
 name = "dealve-tui"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",

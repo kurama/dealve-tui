@@ -10,7 +10,7 @@ categories.workspace = true
 description = "IsThereAnyDeal API client for Dealve"
 
 [dependencies]
-dealve-core = { path = "../core", version = "1.0.0" }
+dealve-core = { path = "../core", version = "1.0.1" }
 tokio = { version = "1.42", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
