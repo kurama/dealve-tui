@@ -1,10 +1,10 @@
 <div align="center">
 
-  <img src=".github/assets/logo.png" alt="Dealve" />
+  <img src="https://raw.githubusercontent.com/kurama/dealve-tui/main/.github/assets/logo.png" alt="Dealve" />
 
  Delve into game deals from your terminal 👾
 
-![Demo](.github/assets/demo.gif)
+![Demo](https://raw.githubusercontent.com/kurama/dealve-tui/main/.github/assets/demo.gif)
 
 [![crates.io](https://img.shields.io/crates/v/dealve-tui.svg?color=B482FF)](https://crates.io/crates/dealve-tui)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg?color=B482FF)](LICENSE)
