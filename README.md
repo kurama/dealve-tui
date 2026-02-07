@@ -34,7 +34,7 @@ rustup update
 ## Installation
 
 ```bash
-cargo install dealve-tui
+cargo install --locked dealve-tui
 ```
 
 Or build from source:
@@ -42,7 +42,7 @@ Or build from source:
 ```bash
 git clone https://github.com/kurama/dealve-tui
 cd dealve-tui
-cargo install --path tui
+cargo install --locked --path tui
 ```
 
 This installs the `dealve` binary to `~/.cargo/bin/`.

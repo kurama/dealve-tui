@@ -10,3 +10,9 @@ authors = ["kurama"]
 repository = "https://github.com/kurama/dealve-tui"
 keywords = ["games", "deals", "tui", "terminal", "isthereanydeal"]
 categories = ["command-line-utilities"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
