@@ -15,26 +15,10 @@ use tachyonfx::pattern::RadialPattern;
 use tachyonfx::{fx, Effect, EffectTimer, Interpolation, Motion};
 
 use crate::config::Config;
-
-// Reuse color palette from ui.rs
-const PURPLE_PRIMARY: Color = Color::Rgb(200, 160, 255);
-const PURPLE_LIGHT: Color = Color::Rgb(220, 190, 255);
-const PURPLE_ACCENT: Color = Color::Rgb(180, 130, 255);
-const SHORTCUT_KEY: Color = Color::Rgb(255, 120, 200);
-const ACCENT_GREEN: Color = Color::Rgb(150, 230, 150);
-const TEXT_PRIMARY: Color = Color::White;
-const TEXT_SECONDARY: Color = Color::Rgb(180, 180, 180);
-const BG_DARK: Color = Color::Rgb(20, 15, 30);
-const ERROR_RED: Color = Color::Rgb(255, 120, 120);
-
-const ASCII_LOGO: [&str; 6] = [
-    "██████╗ ███████╗ █████╗ ██╗    ██╗   ██╗███████╗",
-    "██╔══██╗██╔════╝██╔══██╗██║    ██║   ██║██╔════╝",
-    "██║  ██║█████╗  ███████║██║    ██║   ██║█████╗  ",
-    "██║  ██║██╔══╝  ██╔══██║██║    ╚██╗ ██╔╝██╔══╝  ",
-    "██████╔╝███████╗██║  ██║███████╗╚████╔╝ ███████╗",
-    "╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝ ╚═══╝  ╚══════╝",
-];
+use crate::view::styles::{
+    ACCENT_GREEN, ASCII_LOGO, BG_DARK, ERROR_RED, PURPLE_ACCENT, PURPLE_LIGHT, PURPLE_PRIMARY,
+    SHORTCUT_KEY, TEXT_PRIMARY, TEXT_SECONDARY,
+};
 
 const SPINNER_FRAMES: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 

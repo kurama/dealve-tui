@@ -1,4 +1,4 @@
-use crate::app::{SortCriteria, SortDirection, SortState};
+use crate::model::{SortCriteria, SortDirection, SortState};
 use dealve_core::models::{Platform, Region};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
