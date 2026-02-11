@@ -10,11 +10,16 @@ Thank you for your interest in contributing to Dealve!
    git clone https://github.com/your-username/dealve-tui
    cd dealve-tui
    ```
-3. Build the project:
+3. Install pre-commit hooks:
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+4. Build the project:
    ```bash
    cargo build
    ```
-4. Run the application:
+5. Run the application:
    ```bash
    cargo run -p dealve-tui
    ```
