@@ -262,6 +262,19 @@ fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
 
     spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
+    // Search mode status
+    if model.is_search_mode() {
+        spans.push(Span::styled("A", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("PI-search ", Style::default().fg(text_color)));
+        if !model.is_search_sort_supported() {
+            spans.push(Span::styled(
+                "[sort:default] ",
+                Style::default().fg(value_color),
+            ));
+        }
+        spans.push(Span::styled("└┘", Style::default().fg(border_color)));
+    }
+
     // Refresh
     spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
     spans.push(Span::styled("efresh", Style::default().fg(text_color)));

@@ -6,6 +6,12 @@ pub struct DealsResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct GameSearchItem {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct DealItem {
     pub id: String,
     pub title: String,
@@ -38,6 +44,19 @@ pub struct PriceInfo {
 #[derive(Debug, Deserialize)]
 pub struct HistoryPrice {
     pub amount: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GamePriceHistory {
+    pub all: Option<PriceInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GamePriceItem {
+    pub id: String,
+    #[serde(rename = "historyLow")]
+    pub history_low: Option<GamePriceHistory>,
+    pub deals: Vec<DealInfo>,
 }
 
 impl From<DealItem> for dealve_core::models::Deal {

@@ -132,19 +132,32 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
         // ── Filtering ───────────────────────────────────────────────────
         Message::StartFilter => {
             model.filter.active = true;
-            model.filter.text.clear();
+            model.filter.text = model.active_search_query.clone().unwrap_or_default();
             UpdateResult::none()
         }
         Message::CancelFilter => {
             model.filter.active = false;
-            model.filter.text.clear();
+            model.filter.text = model.active_search_query.clone().unwrap_or_default();
             model.select(Some(0));
             UpdateResult::with_selection_changed()
         }
         Message::ConfirmFilter => {
             model.filter.active = false;
+            let normalized = model.filter.text.trim().to_string();
+            let next_query = if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized)
+            };
+            let has_changed = model.active_search_query != next_query;
+            model.active_search_query = next_query;
+            model.filter.text = model.active_search_query.clone().unwrap_or_default();
             model.select(Some(0));
-            UpdateResult::with_selection_changed()
+            if has_changed {
+                UpdateResult::with_reload()
+            } else {
+                UpdateResult::with_selection_changed()
+            }
         }
         Message::FilterPush(c) => {
             model.filter.text.push(c);
@@ -157,12 +170,20 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::with_selection_changed()
         }
         Message::ClearFilters => {
-            if !model.filter.text.is_empty() || model.price_filter.is_active() {
+            if !model.filter.text.is_empty()
+                || model.price_filter.is_active()
+                || model.active_search_query.is_some()
+            {
+                let had_search_query = model.active_search_query.take().is_some();
                 model.filter.text.clear();
                 model.filter.active = false;
                 model.price_filter.clear();
                 model.select(Some(0));
-                return UpdateResult::with_selection_changed();
+                return if had_search_query {
+                    UpdateResult::with_reload()
+                } else {
+                    UpdateResult::with_selection_changed()
+                };
             }
             UpdateResult::none()
         }
@@ -270,17 +291,29 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
         Message::ToggleSortDirection => {
             model.sort_state.direction = model.sort_state.direction.toggle();
             model.select(Some(0));
-            UpdateResult::with_reload()
+            if model.is_search_mode() {
+                UpdateResult::with_selection_changed()
+            } else {
+                UpdateResult::with_reload()
+            }
         }
         Message::NextSortCriteria => {
             model.sort_state.criteria = model.sort_state.criteria.next();
             model.select(Some(0));
-            UpdateResult::with_reload()
+            if model.is_search_mode() {
+                UpdateResult::with_selection_changed()
+            } else {
+                UpdateResult::with_reload()
+            }
         }
         Message::PrevSortCriteria => {
             model.sort_state.criteria = model.sort_state.criteria.prev();
             model.select(Some(0));
-            UpdateResult::with_reload()
+            if model.is_search_mode() {
+                UpdateResult::with_selection_changed()
+            } else {
+                UpdateResult::with_reload()
+            }
         }
 
         // ── Popups ──────────────────────────────────────────────────────
