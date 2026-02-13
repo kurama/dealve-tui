@@ -9,8 +9,15 @@ use crate::model::Model;
 pub type DealsLoadTask = JoinHandle<dealve_core::Result<Vec<Deal>>>;
 pub type PriceHistoryTask = JoinHandle<(String, dealve_core::Result<Vec<PriceHistoryPoint>>)>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadTaskKind {
+    StandardDeals,
+    SearchDeals,
+}
+
 pub struct TaskManager {
     pub load_task: Option<DealsLoadTask>,
+    pub load_task_kind: Option<LoadTaskKind>,
     pub load_more_task: Option<DealsLoadTask>,
     pub price_history_task: Option<PriceHistoryTask>,
     pub last_selection_change: Instant,
@@ -21,6 +28,7 @@ impl TaskManager {
     pub fn new() -> Self {
         Self {
             load_task: None,
+            load_task_kind: None,
             load_more_task: None,
             price_history_task: None,
             last_selection_change: Instant::now(),
@@ -46,21 +54,60 @@ pub fn spawn_deals_load(
     })
 }
 
+pub fn spawn_search_load(
+    api_key: Option<String>,
+    query: String,
+    platform_filter: dealve_core::models::Platform,
+    region_code: String,
+    limit: usize,
+) -> DealsLoadTask {
+    tokio::spawn(async move {
+        let client = dealve_api::ItadClient::new(api_key);
+        client
+            .search_deals(
+                &query,
+                &region_code,
+                platform_filter.shop_id(),
+                limit.min(50),
+            )
+            .await
+    })
+}
+
 /// Start the initial/refresh load
 pub fn start_load(model: &mut Model, tasks: &mut TaskManager) {
-    if tasks.load_task.is_some() {
-        return;
+    if let Some(task) = tasks.load_task.take() {
+        task.abort();
     }
+    tasks.load_task_kind = None;
+
+    if let Some(task) = tasks.load_more_task.take() {
+        task.abort();
+    }
+
     model.reset_pagination();
     model.set_loading(true);
-    tasks.load_task = Some(spawn_deals_load(
-        model.api_key.clone(),
-        model.platform_filter,
-        model.region.code().to_string(),
-        0,
-        model.deals_page_size,
-        model.sort_state.api_param(),
-    ));
+
+    if let Some(query) = model.active_search_query.clone() {
+        tasks.load_task_kind = Some(LoadTaskKind::SearchDeals);
+        tasks.load_task = Some(spawn_search_load(
+            model.api_key.clone(),
+            query,
+            model.platform_filter,
+            model.region.code().to_string(),
+            model.deals_page_size,
+        ));
+    } else {
+        tasks.load_task_kind = Some(LoadTaskKind::StandardDeals);
+        tasks.load_task = Some(spawn_deals_load(
+            model.api_key.clone(),
+            model.platform_filter,
+            model.region.code().to_string(),
+            0,
+            model.deals_page_size,
+            model.sort_state.api_param(),
+        ));
+    }
 }
 
 /// Check all running tasks and return messages for completed ones
@@ -71,10 +118,18 @@ pub async fn check_tasks(model: &mut Model, tasks: &mut TaskManager) -> Vec<Mess
     if let Some(task) = tasks.load_task.as_mut() {
         if task.is_finished() {
             let task = tasks.load_task.take().unwrap();
+            let load_kind = tasks
+                .load_task_kind
+                .take()
+                .unwrap_or(LoadTaskKind::StandardDeals);
             let page_size = model.deals_page_size;
             match task.await {
                 Ok(Ok(deals)) => {
-                    let is_more = deals.len() >= page_size;
+                    let (is_more, page_size) = match load_kind {
+                        LoadTaskKind::StandardDeals => (deals.len() >= page_size, page_size),
+                        LoadTaskKind::SearchDeals => (false, deals.len()),
+                    };
+
                     messages.push(Message::DealsLoaded {
                         deals,
                         is_more,
@@ -82,10 +137,18 @@ pub async fn check_tasks(model: &mut Model, tasks: &mut TaskManager) -> Vec<Mess
                     });
                 }
                 Ok(Err(e)) => {
-                    messages.push(Message::DealsLoadFailed(e.to_string()));
+                    let msg = match load_kind {
+                        LoadTaskKind::StandardDeals => e.to_string(),
+                        LoadTaskKind::SearchDeals => format!("Search failed: {}", e),
+                    };
+                    messages.push(Message::DealsLoadFailed(msg));
                 }
                 Err(_) => {
-                    messages.push(Message::DealsLoadFailed("Task failed".to_string()));
+                    let msg = match load_kind {
+                        LoadTaskKind::StandardDeals => "Task failed".to_string(),
+                        LoadTaskKind::SearchDeals => "Search task failed".to_string(),
+                    };
+                    messages.push(Message::DealsLoadFailed(msg));
                 }
             }
         }
@@ -136,7 +199,11 @@ pub async fn check_tasks(model: &mut Model, tasks: &mut TaskManager) -> Vec<Mess
     }
 
     // Check if we should load more deals (infinite scroll)
-    if model.should_load_more() && tasks.load_more_task.is_none() && tasks.load_task.is_none() {
+    if !model.is_search_mode()
+        && model.should_load_more()
+        && tasks.load_more_task.is_none()
+        && tasks.load_task.is_none()
+    {
         model.pagination.loading_more = true;
         tasks.load_more_task = Some(spawn_deals_load(
             model.api_key.clone(),

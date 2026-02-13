@@ -1,6 +1,9 @@
 use dealve_core::models::{Deal, GameInfo, Platform, PriceHistoryPoint, Region};
 use ratatui::widgets::{ListState, TableState};
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 use crate::config::Config;
 
@@ -359,6 +362,7 @@ pub struct Model {
 
     // Filters
     pub filter: FilterState,
+    pub active_search_query: Option<String>,
     pub price_filter: PriceFilterState,
 
     // Sort
@@ -403,6 +407,7 @@ impl Model {
             price_history_cache: HashMap::new(),
             ui: UiState::default(),
             filter: FilterState::default(),
+            active_search_query: None,
             price_filter: PriceFilterState::default(),
             sort_state,
             platform_filter,
@@ -433,6 +438,7 @@ impl Model {
         self.deals.clear();
         self.pagination.offset = 0;
         self.pagination.has_more = true;
+        self.pagination.loading_more = false;
         self.select(Some(0));
     }
 
@@ -448,18 +454,27 @@ impl Model {
                 .collect(),
         };
 
-        // Apply name filter only when confirmed (not during active typing)
-        if !self.filter.active && !self.filter.text.is_empty() {
-            let filter_lower = self.filter.text.to_lowercase();
-            deals.retain(|deal| deal.title.to_lowercase().contains(&filter_lower));
-        }
-
         // Apply price filter
         if self.price_filter.is_active() {
             deals.retain(|deal| self.price_filter.matches(deal.price.amount));
         }
 
+        if self.is_search_mode() {
+            self.sort_search_results(&mut deals);
+        }
+
         deals
+    }
+
+    pub fn is_search_mode(&self) -> bool {
+        self.active_search_query.is_some()
+    }
+
+    pub fn is_search_sort_supported(&self) -> bool {
+        matches!(
+            self.sort_state.criteria,
+            SortCriteria::Price | SortCriteria::Cut
+        )
     }
 
     pub fn selected_deal(&self) -> Option<&Deal> {
@@ -531,5 +546,22 @@ impl Model {
             .copied()
             .filter(|p| *p != Platform::All)
             .collect()
+    }
+
+    fn sort_search_results(&self, deals: &mut Vec<&Deal>) {
+        match self.sort_state.criteria {
+            SortCriteria::Price => deals.sort_by(|a, b| {
+                a.price
+                    .amount
+                    .partial_cmp(&b.price.amount)
+                    .unwrap_or(Ordering::Equal)
+            }),
+            SortCriteria::Cut => deals.sort_by_key(|deal| deal.price.discount),
+            _ => return,
+        }
+
+        if self.sort_state.direction == SortDirection::Descending {
+            deals.reverse();
+        }
     }
 }
