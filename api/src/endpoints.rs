@@ -1,11 +1,14 @@
 use crate::{
     client::ItadClient,
-    types::{DealsResponse, GameInfoResponse, PriceHistoryItem},
+    types::{
+        DealInfo, DealsResponse, GameInfoResponse, GamePriceItem, GameSearchItem, PriceHistoryItem,
+    },
 };
 use dealve_core::{
     models::{Deal, GameInfo, PriceHistoryPoint},
     DealveError, Result,
 };
+use std::{cmp::Ordering, collections::HashMap};
 
 impl ItadClient {
     pub async fn get_deals(
@@ -92,6 +95,165 @@ impl ItadClient {
             .map_err(|e| DealveError::Parse(e.to_string()))?;
 
         Ok(GameInfo::from(info_response))
+    }
+
+    pub async fn search_games(&self, title: &str, results: usize) -> Result<Vec<GameSearchItem>> {
+        let api_key = self
+            .api_key()
+            .ok_or_else(|| DealveError::Config("API key is required".to_string()))?;
+
+        if title.trim().is_empty() || results == 0 {
+            return Ok(vec![]);
+        }
+
+        let url = format!("{}/games/search/v1", self.base_url());
+        let query_params = [
+            ("key", api_key.to_string()),
+            ("title", title.to_string()),
+            ("results", results.to_string()),
+        ];
+
+        let response = self
+            .client()
+            .get(&url)
+            .query(&query_params)
+            .send()
+            .await
+            .map_err(|e| DealveError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(DealveError::Api(format!(
+                "API returned status {}: {}",
+                status, body
+            )));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| DealveError::Parse(e.to_string()))
+    }
+
+    pub async fn get_prices_for_games(
+        &self,
+        ids: &[String],
+        country: &str,
+        shop_id: Option<u32>,
+    ) -> Result<Vec<GamePriceItem>> {
+        let api_key = self
+            .api_key()
+            .ok_or_else(|| DealveError::Config("API key is required".to_string()))?;
+
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let url = format!("{}/games/prices/v3", self.base_url());
+
+        let mut query_params: Vec<(&str, String)> = vec![
+            ("key", api_key.to_string()),
+            ("country", country.to_string()),
+            ("deals", "true".to_string()),
+            ("capacity", "1".to_string()),
+        ];
+
+        if let Some(id) = shop_id {
+            query_params.push(("shops", id.to_string()));
+        }
+
+        let response = self
+            .client()
+            .post(&url)
+            .query(&query_params)
+            .json(ids)
+            .send()
+            .await
+            .map_err(|e| DealveError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(DealveError::Api(format!(
+                "API returned status {}: {}",
+                status, body
+            )));
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| DealveError::Parse(e.to_string()))
+    }
+
+    pub async fn search_deals(
+        &self,
+        query: &str,
+        country: &str,
+        shop_id: Option<u32>,
+        limit: usize,
+    ) -> Result<Vec<Deal>> {
+        let query = query.trim();
+        if query.is_empty() || limit == 0 {
+            return Ok(vec![]);
+        }
+
+        let search_results = self.search_games(query, limit).await?;
+        if search_results.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut ids = Vec::with_capacity(search_results.len());
+        let mut titles_by_id = HashMap::with_capacity(search_results.len());
+
+        for result in search_results {
+            if titles_by_id.contains_key(&result.id) {
+                continue;
+            }
+            ids.push(result.id.clone());
+            titles_by_id.insert(result.id, result.title);
+        }
+
+        let prices = self.get_prices_for_games(&ids, country, shop_id).await?;
+        let mut deals_by_id: HashMap<String, (DealInfo, Option<f64>)> = HashMap::new();
+
+        for price_item in prices {
+            let history_low = price_item
+                .history_low
+                .and_then(|h| h.all.map(|price| price.amount));
+
+            if let Some(best_deal) = select_best_deal(price_item.deals) {
+                deals_by_id.insert(price_item.id, (best_deal, history_low));
+            }
+        }
+
+        let mut deals = Vec::new();
+        for id in ids {
+            let Some((deal_info, history_low)) = deals_by_id.remove(&id) else {
+                continue;
+            };
+
+            let title = titles_by_id.remove(&id).unwrap_or_else(|| id.clone());
+            deals.push(Deal {
+                id,
+                title,
+                shop: dealve_core::models::Shop {
+                    id: deal_info.shop.id.to_string(),
+                    name: deal_info.shop.name,
+                },
+                price: dealve_core::models::Price {
+                    amount: deal_info.price.amount,
+                    currency: deal_info.price.currency,
+                    discount: deal_info.cut,
+                },
+                regular_price: deal_info.regular.amount,
+                url: deal_info.url,
+                history_low: history_low.or_else(|| deal_info.history_low.map(|h| h.amount)),
+            });
+        }
+
+        Ok(deals)
     }
 
     /// Get price history for a game (max 1 year of data)
@@ -185,4 +347,20 @@ impl ItadClient {
             }
         }
     }
+}
+
+fn select_best_deal(deals: Vec<DealInfo>) -> Option<DealInfo> {
+    deals.into_iter().min_by(|a, b| {
+        let price_order = a
+            .price
+            .amount
+            .partial_cmp(&b.price.amount)
+            .unwrap_or(Ordering::Equal);
+
+        if price_order == Ordering::Equal {
+            b.cut.cmp(&a.cut)
+        } else {
+            price_order
+        }
+    })
 }
