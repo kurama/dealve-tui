@@ -1,7 +1,7 @@
 use dealve_core::models::Platform;
 
 use crate::message::Message;
-use crate::model::{MenuItem, Model, OptionsTab, Popup};
+use crate::model::{MenuItem, Model, OptionsTab, Popup, SortCriteria};
 
 /// Flags returned by update to signal side effects needed
 pub struct UpdateResult {
@@ -151,6 +151,9 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             };
             let has_changed = model.active_search_query != next_query;
             model.active_search_query = next_query;
+            if model.is_search_mode() && !model.is_search_sort_supported() {
+                model.sort_state.criteria = SortCriteria::Price;
+            }
             model.filter.text = model.active_search_query.clone().unwrap_or_default();
             model.select(Some(0));
             if has_changed {
@@ -298,7 +301,15 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             }
         }
         Message::NextSortCriteria => {
-            model.sort_state.criteria = model.sort_state.criteria.next();
+            model.sort_state.criteria = if model.is_search_mode() {
+                match model.sort_state.criteria {
+                    SortCriteria::Price => SortCriteria::Cut,
+                    SortCriteria::Cut => SortCriteria::Price,
+                    _ => SortCriteria::Price,
+                }
+            } else {
+                model.sort_state.criteria.next()
+            };
             model.select(Some(0));
             if model.is_search_mode() {
                 UpdateResult::with_selection_changed()
@@ -307,7 +318,15 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             }
         }
         Message::PrevSortCriteria => {
-            model.sort_state.criteria = model.sort_state.criteria.prev();
+            model.sort_state.criteria = if model.is_search_mode() {
+                match model.sort_state.criteria {
+                    SortCriteria::Price => SortCriteria::Cut,
+                    SortCriteria::Cut => SortCriteria::Price,
+                    _ => SortCriteria::Price,
+                }
+            } else {
+                model.sort_state.criteria.prev()
+            };
             model.select(Some(0));
             if model.is_search_mode() {
                 UpdateResult::with_selection_changed()
