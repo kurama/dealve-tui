@@ -54,6 +54,10 @@ pub fn spawn_deals_load(
     })
 }
 
+/// Max results allowed by ITAD search API (`/games/search/v1`).
+/// See https://docs.isthereanydeal.com/ — `results: number [1..100]`
+const MAX_SEARCH_RESULTS: usize = 100;
+
 pub fn spawn_search_load(
     api_key: Option<String>,
     query: String,
@@ -68,7 +72,7 @@ pub fn spawn_search_load(
                 &query,
                 &region_code,
                 platform_filter.shop_id(),
-                limit.min(50),
+                limit.min(MAX_SEARCH_RESULTS),
             )
             .await
     })
