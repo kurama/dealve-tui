@@ -156,10 +156,11 @@ impl ItadClient {
             ("key", api_key.to_string()),
             ("country", country.to_string()),
             ("deals", "true".to_string()),
-            ("capacity", "1".to_string()),
         ];
 
         if let Some(id) = shop_id {
+            // Single shop: one deal per game is enough
+            query_params.push(("capacity", "1".to_string()));
             query_params.push(("shops", id.to_string()));
         }
 
