@@ -89,6 +89,13 @@ impl SortCriteria {
         }
     }
 
+    pub fn toggle_search(&self) -> Self {
+        match self {
+            SortCriteria::Price => SortCriteria::Cut,
+            _ => SortCriteria::Price,
+        }
+    }
+
     pub fn api_param(&self, ascending: bool) -> String {
         let base = match self {
             SortCriteria::Price => "price",

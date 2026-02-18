@@ -302,11 +302,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
         }
         Message::NextSortCriteria => {
             model.sort_state.criteria = if model.is_search_mode() {
-                match model.sort_state.criteria {
-                    SortCriteria::Price => SortCriteria::Cut,
-                    SortCriteria::Cut => SortCriteria::Price,
-                    _ => SortCriteria::Price,
-                }
+                model.sort_state.criteria.toggle_search()
             } else {
                 model.sort_state.criteria.next()
             };
@@ -319,11 +315,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
         }
         Message::PrevSortCriteria => {
             model.sort_state.criteria = if model.is_search_mode() {
-                match model.sort_state.criteria {
-                    SortCriteria::Price => SortCriteria::Cut,
-                    SortCriteria::Cut => SortCriteria::Price,
-                    _ => SortCriteria::Price,
-                }
+                model.sort_state.criteria.toggle_search()
             } else {
                 model.sort_state.criteria.prev()
             };
