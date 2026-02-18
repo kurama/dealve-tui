@@ -72,7 +72,7 @@ pub fn render_menu_overlay(frame: &mut Frame, model: &Model) {
 pub fn render_options_popup(frame: &mut Frame, model: &Model) {
     let area = frame.area();
     let popup_width = 60u16;
-    let popup_height = 22u16;
+    let popup_height = 26u16;
     let popup_x = area.width.saturating_sub(popup_width) / 2;
     let popup_y = area.height.saturating_sub(popup_height) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
@@ -148,7 +148,28 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
     frame.render_widget(desc, chunks[0]);
 
     let mut region_lines: Vec<Line> = Vec::new();
+    let mut current_continent = "";
+    let mut selected_rendered_line: usize = 0;
+
     for (i, region) in Region::ALL.iter().enumerate() {
+        // Insert continent header when group changes
+        if region.continent() != current_continent {
+            current_continent = region.continent();
+            if !region_lines.is_empty() {
+                region_lines.push(Line::from(""));
+            }
+            region_lines.push(Line::from(Span::styled(
+                format!(" — {} —", current_continent),
+                Style::default()
+                    .fg(PURPLE_LIGHT)
+                    .add_modifier(Modifier::BOLD),
+            )));
+        }
+
+        if model.options.region_list_index == i {
+            selected_rendered_line = region_lines.len();
+        }
+
         let is_selected = model.options.region_list_index == i;
         let is_current = model.options.region == *region;
 
@@ -162,17 +183,27 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
         };
 
         region_lines.push(Line::from(Span::styled(
-            format!(" {} {}", marker, region.name()),
+            format!(" {} {} ({})", marker, region.name(), region.code()),
             line_style,
         )));
     }
 
-    let region_list = Paragraph::new(region_lines).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(PURPLE_ACCENT))
-            .title(Span::styled(" Region ", Style::default().fg(PURPLE_LIGHT))),
-    );
+    // Calculate scroll offset to keep selected item visible
+    let visible_height = chunks[1].height.saturating_sub(2) as usize;
+    let scroll_offset = if selected_rendered_line >= visible_height {
+        (selected_rendered_line - visible_height + 1) as u16
+    } else {
+        0
+    };
+
+    let region_list = Paragraph::new(region_lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(PURPLE_ACCENT))
+                .title(Span::styled(" Region ", Style::default().fg(PURPLE_LIGHT))),
+        )
+        .scroll((scroll_offset, 0));
     frame.render_widget(region_list, chunks[1]);
 
     let help = Paragraph::new(Line::from(Span::styled(
