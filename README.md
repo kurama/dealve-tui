@@ -6,8 +6,12 @@
 
 ![Demo](https://raw.githubusercontent.com/kurama/dealve-tui/main/.github/assets/demo.gif)
 
-[![crates.io](https://img.shields.io/crates/v/dealve-tui.svg?color=B482FF)](https://crates.io/crates/dealve-tui)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg?color=B482FF)](LICENSE)
+[![Built With Ratatui](https://img.shields.io/badge/Built_With-Ratatui-000?logo=ratatui&logoColor=B7FFA6&labelColor=222322&color=B482FF)](https://ratatui.rs)
+[![crates.io](https://img.shields.io/crates/v/dealve-tui.svg?color=B482FF&labelColor=222322)](https://crates.io/crates/dealve-tui)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg?color=B482FF&labelColor=222322)](LICENSE)
+
+
+<a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/"><img src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/png/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.png" alt="Terminal Trove Tool of The Week" width="150" /></a>
 
 </div>
 
