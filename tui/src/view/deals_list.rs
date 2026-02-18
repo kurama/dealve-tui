@@ -213,10 +213,10 @@ fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
         ));
         spans.push(Span::styled("_", Style::default().fg(text_color)));
         spans.push(Span::styled(" ⏎", Style::default().fg(shortcut_color)));
-    } else if !model.filter.text.is_empty() {
+    } else if let Some(query) = &model.active_search_query {
         spans.push(Span::styled("f", Style::default().fg(shortcut_color)));
         spans.push(Span::styled(
-            format!("[{}] ", model.filter.text.clone()),
+            format!("[{}] ", query),
             Style::default().fg(value_color),
         ));
         spans.push(Span::styled("c", Style::default().fg(shortcut_color)));
