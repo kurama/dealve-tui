@@ -1,9 +1,6 @@
 use dealve_core::models::{Deal, GameInfo, Platform, PriceHistoryPoint, Region};
 use ratatui::widgets::{ListState, TableState};
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
 
@@ -557,12 +554,7 @@ impl Model {
 
     fn sort_search_results(&self, deals: &mut Vec<&Deal>) {
         match self.sort_state.criteria {
-            SortCriteria::Price => deals.sort_by(|a, b| {
-                a.price
-                    .amount
-                    .partial_cmp(&b.price.amount)
-                    .unwrap_or(Ordering::Equal)
-            }),
+            SortCriteria::Price => deals.sort_by(|a, b| a.price.amount.total_cmp(&b.price.amount)),
             SortCriteria::Cut => deals.sort_by_key(|deal| deal.price.discount),
             _ => return,
         }

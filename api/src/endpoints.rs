@@ -352,11 +352,7 @@ impl ItadClient {
 
 fn select_best_deal(deals: Vec<DealInfo>) -> Option<DealInfo> {
     deals.into_iter().min_by(|a, b| {
-        let price_order = a
-            .price
-            .amount
-            .partial_cmp(&b.price.amount)
-            .unwrap_or(Ordering::Equal);
+        let price_order = a.price.amount.total_cmp(&b.price.amount);
 
         if price_order == Ordering::Equal {
             b.cut.cmp(&a.cut)
