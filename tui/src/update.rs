@@ -81,6 +81,44 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             }
             UpdateResult::with_selection_changed()
         }
+        Message::SelectPageUp => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                let page_size = model.deals_page_size;
+                let i = match model.ui.table_state.selected() {
+                    Some(i) => i.saturating_sub(page_size),
+                    None => 0,
+                };
+                model.select(Some(i));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectPageDown => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                let page_size = model.deals_page_size;
+                let i = match model.ui.table_state.selected() {
+                    Some(i) => (i + page_size).min(filtered_count - 1),
+                    None => 0,
+                };
+                model.select(Some(i));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectTop => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                model.select(Some(0));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectBottom => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                model.select(Some(filtered_count - 1));
+            }
+            UpdateResult::with_selection_changed()
+        }
         Message::OpenSelectedDeal => {
             if let Some(i) = model.ui.table_state.selected() {
                 let filtered = model.filtered_deals();
