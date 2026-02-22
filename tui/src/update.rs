@@ -3,6 +3,9 @@ use dealve_core::models::Platform;
 use crate::message::Message;
 use crate::model::{MenuItem, Model, OptionsTab, Popup, SortCriteria};
 
+// Number of rows to scroll for PageUp/PageDown navigation
+const PAGE_SCROLL_SIZE: usize = 20;
+
 /// Flags returned by update to signal side effects needed
 pub struct UpdateResult {
     pub msg: Option<Message>,
@@ -78,6 +81,42 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     None => 0,
                 };
                 model.select(Some(i));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectPageUp => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                let i = match model.ui.table_state.selected() {
+                    Some(i) => i.saturating_sub(PAGE_SCROLL_SIZE),
+                    None => 0,
+                };
+                model.select(Some(i));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectPageDown => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                let i = match model.ui.table_state.selected() {
+                    Some(i) => (i + PAGE_SCROLL_SIZE).min(filtered_count - 1),
+                    None => 0,
+                };
+                model.select(Some(i));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectTop => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                model.select(Some(0));
+            }
+            UpdateResult::with_selection_changed()
+        }
+        Message::SelectBottom => {
+            let filtered_count = model.filtered_deals().len();
+            if filtered_count > 0 {
+                model.select(Some(filtered_count - 1));
             }
             UpdateResult::with_selection_changed()
         }

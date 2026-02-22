@@ -4,6 +4,10 @@ pub enum Message {
     // Navigation
     SelectNext,
     SelectPrevious,
+    SelectPageUp,
+    SelectPageDown,
+    SelectTop,
+    SelectBottom,
     OpenSelectedDeal,
 
     // Menu
