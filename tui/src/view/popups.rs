@@ -402,7 +402,7 @@ fn render_advanced_tab(frame: &mut Frame, model: &Model, area: Rect) {
 pub fn render_keybinds_popup(frame: &mut Frame) {
     let area = frame.area();
     let popup_width = 45u16;
-    let popup_height = 15u16;
+    let popup_height = 17u16;
     let popup_x = area.width.saturating_sub(popup_width) / 2;
     let popup_y = area.height.saturating_sub(popup_height) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
@@ -412,6 +412,8 @@ pub fn render_keybinds_popup(frame: &mut Frame) {
     let content = vec![
         "",
         "  [Up/Down] or [j/k]  Navigate",
+        "  [PgUp/PgDown]       Page scroll",
+        "  [Home/End]          First/Last deal",
         "  [Enter]             Open deal / Select",
         "  [f]                 Filter by name",
         "  [c]                 Clear filter",
