@@ -15,8 +15,8 @@ name = "dealve"
 path = "src/main.rs"
 
 [dependencies]
-dealve-core = { path = "../core", version = "1.0.1" }
-dealve-api = { path = "../api", version = "1.0.1" }
+dealve-core = { path = "../core", version = "1.0.2" }
+dealve-api = { path = "../api", version = "1.0.2" }
 tokio = { version = "1.42", features = ["full"] }
 ratatui = "0.30"
 crossterm = "0.28"
