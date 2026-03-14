@@ -12,11 +12,11 @@ use ratatui::{
 };
 
 use crate::model::{Model, Popup};
-use styles::BG_DARK;
+use styles::bg_dark;
 
 pub fn view(frame: &mut Frame, model: &mut Model) {
-    // Fill entire screen with dark purple background
-    let bg_block = Block::default().style(Style::default().bg(BG_DARK));
+    // Fill entire screen with theme background
+    let bg_block = Block::default().style(Style::default().bg(bg_dark()));
     frame.render_widget(bg_block, frame.area());
 
     let dimmed = model.ui.show_menu;

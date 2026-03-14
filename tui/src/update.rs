@@ -49,7 +49,7 @@ impl UpdateResult {
 
 pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
     match msg {
-        // ── Navigation ──────────────────────────────────────────────────
+        // Navigation
         Message::SelectNext => {
             let filtered_count = model.filtered_deals().len();
             if filtered_count > 0 {
@@ -130,7 +130,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── Menu ────────────────────────────────────────────────────────
+        // Menu
         Message::ToggleMenu => {
             model.ui.show_menu = !model.ui.show_menu;
             if model.ui.show_menu {
@@ -168,7 +168,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── Filtering ───────────────────────────────────────────────────
+        // Filtering
         Message::StartFilter => {
             model.filter.active = true;
             model.filter.text = model.active_search_query.clone().unwrap_or_default();
@@ -230,7 +230,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── Price filter ────────────────────────────────────────────────
+        // Price filter
         Message::OpenPriceFilter => {
             model.price_filter.min_input = model
                 .price_filter
@@ -285,7 +285,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::with_selection_changed()
         }
 
-        // ── Platform popup ──────────────────────────────────────────────
+        // Platform popup
         Message::OpenPlatformPopup => {
             let enabled = model.enabled_platforms();
             model.ui.platform_popup_index = enabled
@@ -329,7 +329,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── Sort ────────────────────────────────────────────────────────
+        // Sort
         Message::ToggleSortDirection => {
             model.sort_state.direction = model.sort_state.direction.toggle();
             model.select(Some(0));
@@ -366,21 +366,23 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             }
         }
 
-        // ── Popups ──────────────────────────────────────────────────────
+        // Popups
         Message::ClosePopup => {
             model.ui.popup = Popup::None;
             model.options.platform_list_index = 0;
             model.options.region_list_index = 0;
             model.options.advanced_list_index = 0;
+            model.options.theme_list_index = 0;
             UpdateResult::none()
         }
 
-        // ── Options ─────────────────────────────────────────────────────
+        // Options
         Message::OptionsNextTab => {
             model.options.current_tab = (model.options.current_tab + 1) % OptionsTab::ALL.len();
             model.options.platform_list_index = 0;
             model.options.region_list_index = 0;
             model.options.advanced_list_index = 0;
+            model.options.theme_list_index = 0;
             UpdateResult::none()
         }
         Message::OptionsPrevTab => {
@@ -392,6 +394,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             model.options.platform_list_index = 0;
             model.options.region_list_index = 0;
             model.options.advanced_list_index = 0;
+            model.options.theme_list_index = 0;
             UpdateResult::none()
         }
         Message::OptionsNextItem => {
@@ -407,6 +410,10 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                 }
                 OptionsTab::Advanced => {
                     model.options.advanced_list_index = (model.options.advanced_list_index + 1) % 3;
+                }
+                OptionsTab::Theme => {
+                    model.options.theme_list_index = (model.options.theme_list_index + 1)
+                        % crate::view::styles::Theme::ALL.len();
                 }
             }
             UpdateResult::none()
@@ -434,6 +441,13 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                         model.options.advanced_list_index = 2;
                     } else {
                         model.options.advanced_list_index -= 1;
+                    }
+                }
+                OptionsTab::Theme => {
+                    if model.options.theme_list_index == 0 {
+                        model.options.theme_list_index = crate::view::styles::Theme::ALL.len() - 1;
+                    } else {
+                        model.options.theme_list_index -= 1;
                     }
                 }
             }
@@ -499,6 +513,15 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     }
                     model.options.save_to_config();
                 }
+                OptionsTab::Theme => {
+                    if let Some(&theme) =
+                        crate::view::styles::Theme::ALL.get(model.options.theme_list_index)
+                    {
+                        model.options.theme = theme;
+                        crate::view::styles::set_active_theme(theme);
+                    }
+                    model.options.save_to_config();
+                }
             }
             if needs_reload {
                 model.ui.popup = Popup::None;
@@ -518,7 +541,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── Data loading results ────────────────────────────────────────
+        // Data loading results
         Message::DealsLoaded {
             deals,
             is_more,
@@ -562,7 +585,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
 
-        // ── System ──────────────────────────────────────────────────────
+        // System
         Message::RequestRefresh => UpdateResult::with_reload(),
 
         Message::Tick => {

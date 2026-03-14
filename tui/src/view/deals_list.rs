@@ -13,9 +13,17 @@ use super::styles::*;
 use crate::model::Model;
 
 pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimmed: bool) {
-    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
-    let title_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+    let text_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let border_color = if dimmed { text_dimmed() } else { accent() };
+    let title_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
 
     let title_text = format!("Deals [{}]", model.platform_filter.name());
     let title = build_title(&title_text, border_color, title_color);
@@ -42,7 +50,7 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
     if let Some(error) = &model.error {
         let error_title = build_title("Error", border_color, title_color);
         let error_msg = Paragraph::new(format!("Error: {}", error))
-            .style(Style::default().fg(ratatui::style::Color::Red))
+            .style(Style::default().fg(error_red()))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -73,7 +81,11 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
     }
 
     // Build table header
-    let header_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+    let header_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
     let header = Row::new(vec![
         Cell::from("Title").style(Style::default().fg(header_color)),
         Cell::from("Price").style(Style::default().fg(header_color)),
@@ -94,19 +106,19 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
                 .unwrap_or(false);
 
             let (item_title_color, price_color, discount_color) = if dimmed {
-                (TEXT_DIMMED, TEXT_DIMMED, TEXT_DIMMED)
+                (text_dimmed(), text_dimmed(), text_dimmed())
             } else if is_atl {
-                (TEXT_SECONDARY, PURPLE_PRIMARY, PURPLE_PRIMARY)
+                (text_secondary(), primary(), primary())
             } else if deal.price.discount >= 75 {
-                (TEXT_SECONDARY, ACCENT_GREEN, ACCENT_GREEN)
+                (text_secondary(), green(), green())
             } else if deal.price.discount >= 50 {
-                (TEXT_SECONDARY, ACCENT_YELLOW, ACCENT_YELLOW)
+                (text_secondary(), yellow(), yellow())
             } else {
-                (TEXT_SECONDARY, TEXT_SECONDARY, TEXT_SECONDARY)
+                (text_secondary(), text_secondary(), text_secondary())
             };
 
             let atl_cell = if is_atl {
-                let atl_color = if dimmed { TEXT_DIMMED } else { PURPLE_PRIMARY };
+                let atl_color = if dimmed { text_dimmed() } else { primary() };
                 Cell::from("ATL").style(Style::default().fg(atl_color).add_modifier(Modifier::BOLD))
             } else {
                 Cell::from("")
@@ -122,9 +134,9 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
         .collect();
 
     let highlight_style = if dimmed {
-        Style::default().fg(TEXT_DIMMED)
+        Style::default().fg(text_dimmed())
     } else {
-        Style::default().bg(BG_HIGHLIGHT)
+        Style::default().bg(bg_highlight())
     };
 
     let total_items = filtered_deals.len();
@@ -132,7 +144,11 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
 
     // Counter for bottom right corner
     // Use spinner in place of "+" to avoid width changes during loading
-    let counter_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
+    let counter_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
     let suffix = if model.pagination.loading_more {
         format!("{}", model.spinner_char())
     } else if model.pagination.has_more {
@@ -170,8 +186,12 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
     frame.render_stateful_widget(table, area, &mut model.ui.table_state);
 
     // Render scrollbar
-    let scrollbar_track_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
-    let scrollbar_arrow_color = if dimmed { TEXT_DIMMED } else { SHORTCUT_KEY };
+    let scrollbar_track_color = if dimmed { text_dimmed() } else { accent() };
+    let scrollbar_arrow_color = if dimmed {
+        text_dimmed()
+    } else {
+        shortcut_key()
+    };
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
         .begin_symbol(Some("↑"))
@@ -195,10 +215,22 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
 
 /// Build status bar line with btop-style highlighted shortcut keys and separators
 fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
-    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let shortcut_color = if dimmed { TEXT_DIMMED } else { SHORTCUT_KEY };
-    let value_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
+    let text_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let sc_color = if dimmed {
+        text_dimmed()
+    } else {
+        shortcut_key()
+    };
+    let value_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let border_color = if dimmed { text_dimmed() } else { accent() };
 
     let mut spans: Vec<Span> = Vec::new();
 
@@ -206,36 +238,36 @@ fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
 
     // Filter
     if model.filter.active {
-        spans.push(Span::styled("f ", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("f ", Style::default().fg(sc_color)));
         spans.push(Span::styled(
             model.filter.text.clone(),
             Style::default().fg(text_color),
         ));
         spans.push(Span::styled("_", Style::default().fg(text_color)));
-        spans.push(Span::styled(" ⏎", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled(" ⏎", Style::default().fg(sc_color)));
     } else if let Some(query) = &model.active_search_query {
-        spans.push(Span::styled("f", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("f", Style::default().fg(sc_color)));
         spans.push(Span::styled(
             format!("[{}] ", query),
             Style::default().fg(value_color),
         ));
-        spans.push(Span::styled("c", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("c", Style::default().fg(sc_color)));
         spans.push(Span::styled("lear", Style::default().fg(text_color)));
     } else {
-        spans.push(Span::styled("f", Style::default().fg(shortcut_color)));
+        spans.push(Span::styled("f", Style::default().fg(sc_color)));
         spans.push(Span::styled("ilter", Style::default().fg(text_color)));
     }
 
     spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
     // Platform
-    spans.push(Span::styled("p", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("p", Style::default().fg(sc_color)));
     spans.push(Span::styled("latform", Style::default().fg(text_color)));
 
     spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
     // Price filter
-    spans.push(Span::styled("$", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("$", Style::default().fg(sc_color)));
     if model.price_filter.is_active() {
         spans.push(Span::styled(
             format!("[{}]", model.price_filter.label()),
@@ -246,9 +278,9 @@ fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
     spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
     // Sort
-    spans.push(Span::styled("s", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("s", Style::default().fg(sc_color)));
     spans.push(Span::styled("ort[", Style::default().fg(text_color)));
-    spans.push(Span::styled("←", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("←", Style::default().fg(sc_color)));
     spans.push(Span::styled(
         model.sort_state.criteria.name().to_string(),
         Style::default().fg(value_color),
@@ -257,13 +289,13 @@ fn build_status_line(model: &Model, dimmed: bool) -> Line<'static> {
         model.sort_state.direction.arrow().to_string(),
         Style::default().fg(value_color),
     ));
-    spans.push(Span::styled("→", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("→", Style::default().fg(sc_color)));
     spans.push(Span::styled("]", Style::default().fg(text_color)));
 
     spans.push(Span::styled("└┘", Style::default().fg(border_color)));
 
     // Refresh
-    spans.push(Span::styled("r", Style::default().fg(shortcut_color)));
+    spans.push(Span::styled("r", Style::default().fg(sc_color)));
     spans.push(Span::styled("efresh", Style::default().fg(text_color)));
 
     spans.push(Span::styled("└", Style::default().fg(border_color)));

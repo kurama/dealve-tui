@@ -12,7 +12,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use ratatui::{backend::CrosstermBackend, layout::Rect, prelude::Color, Terminal};
+use ratatui::{backend::CrosstermBackend, layout::Rect, Terminal};
 use std::io::{stdout, Stdout};
 use tachyonfx::fx::EvolveSymbolSet;
 use tachyonfx::pattern::RadialPattern;
@@ -75,9 +75,8 @@ async fn run(
     let term_size = terminal.size()?;
     let full_screen = Rect::new(0, 0, term_size.width, term_size.height);
 
-    let style = ratatui::style::Style::default()
-        .fg(Color::Rgb(20, 15, 30))
-        .bg(Color::Rgb(10, 8, 15));
+    let bg = view::styles::bg_dark();
+    let style = ratatui::style::Style::default().fg(bg).bg(bg);
 
     let timer = EffectTimer::from_ms(1200, Interpolation::CubicOut);
     effects.push((
@@ -87,7 +86,7 @@ async fn run(
     ));
 
     loop {
-        // ── 1. View ─────────────────────────────────────────────────────
+        // View
         let elapsed = last_frame_time.elapsed();
         last_frame_time = std::time::Instant::now();
 
@@ -105,14 +104,14 @@ async fn run(
             break;
         }
 
-        // ── 2. Check async tasks ────────────────────────────────────────
+        // Check async tasks
         let task_messages = tasks::check_tasks(&mut model, &mut task_mgr).await;
         for msg in task_messages {
             let result = update::update(&mut model, msg);
             handle_result(&mut model, &mut task_mgr, &mut effects, terminal, result)?;
         }
 
-        // ── 3. Game info loading (debounced) ────────────────────────────
+        // Game info loading (debounced)
         if task_mgr.pending_game_info_load
             && !model.loading.deals
             && effects.is_empty()
@@ -123,7 +122,7 @@ async fn run(
             tasks::load_game_info_if_needed(&mut model).await;
         }
 
-        // ── 4. Handle event ─────────────────────────────────────────────
+        // Handle event
         let poll_duration = if !effects.is_empty() {
             std::time::Duration::from_millis(16)
         } else {
@@ -169,7 +168,7 @@ fn handle_result(
                 Motion::UpToDown,
                 15,
                 3,
-                Color::Rgb(20, 15, 30),
+                view::styles::bg_dark(),
                 (600, Interpolation::QuadOut),
             ),
             deals_inner,

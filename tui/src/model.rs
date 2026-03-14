@@ -3,9 +3,9 @@ use ratatui::widgets::{ListState, TableState};
 use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
+use crate::view::styles::Theme;
 
-// ── Enums ───────────────────────────────────────────────────────────────────
-
+// Enums
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuItem {
     Browse,
@@ -151,6 +151,7 @@ pub enum OptionsTab {
     Region,
     Platforms,
     Advanced,
+    Theme,
 }
 
 impl OptionsTab {
@@ -158,6 +159,7 @@ impl OptionsTab {
         OptionsTab::Region,
         OptionsTab::Platforms,
         OptionsTab::Advanced,
+        OptionsTab::Theme,
     ];
 
     pub fn name(&self) -> &str {
@@ -165,12 +167,12 @@ impl OptionsTab {
             OptionsTab::Region => "Region",
             OptionsTab::Platforms => "Platforms",
             OptionsTab::Advanced => "Advanced",
+            OptionsTab::Theme => "Theme",
         }
     }
 }
 
-// ── Sub-states ──────────────────────────────────────────────────────────────
-
+// Sub-states
 #[derive(Debug, Clone, Default)]
 pub struct PriceFilterState {
     pub min_input: String,
@@ -226,12 +228,14 @@ pub struct OptionsState {
     pub platform_list_index: usize,
     pub region_list_index: usize,
     pub advanced_list_index: usize,
+    pub theme_list_index: usize,
     pub default_platform: Platform,
     pub enabled_platforms: HashSet<Platform>,
     pub region: Region,
     pub deals_page_size: usize,
     pub game_info_delay_ms: u64,
     pub default_sort: SortState,
+    pub theme: Theme,
 }
 
 impl Default for OptionsState {
@@ -245,12 +249,14 @@ impl Default for OptionsState {
             platform_list_index: 0,
             region_list_index: 0,
             advanced_list_index: 0,
+            theme_list_index: 0,
             default_platform: Platform::All,
             enabled_platforms: enabled,
             region: Region::default(),
             deals_page_size: 50,
             game_info_delay_ms: 200,
             default_sort: SortState::default(),
+            theme: Theme::default(),
         }
     }
 }
@@ -261,6 +267,7 @@ impl OptionsState {
         let default_platform = config.get_default_platform();
         let region = config.get_region();
         let default_sort = config.get_default_sort();
+        let theme = config.get_theme();
 
         let default_platform = if enabled_platforms.contains(&default_platform) {
             default_platform
@@ -273,12 +280,14 @@ impl OptionsState {
             platform_list_index: 0,
             region_list_index: 0,
             advanced_list_index: 0,
+            theme_list_index: 0,
             default_platform,
             enabled_platforms,
             region,
             deals_page_size: config.deals_page_size,
             game_info_delay_ms: config.game_info_delay_ms,
             default_sort,
+            theme,
         }
     }
 
@@ -289,6 +298,7 @@ impl OptionsState {
             &self.enabled_platforms,
             self.region,
             self.default_sort,
+            self.theme,
         );
         config.deals_page_size = self.deals_page_size;
         config.game_info_delay_ms = self.game_info_delay_ms;
@@ -353,8 +363,7 @@ impl Default for UiState {
     }
 }
 
-// ── Model ───────────────────────────────────────────────────────────────────
-
+// Model
 pub struct Model {
     // Data
     pub deals: Vec<Deal>,
@@ -404,6 +413,7 @@ impl Model {
         let platform_filter = options.default_platform;
         let region = options.region;
         let sort_state = options.default_sort;
+        crate::view::styles::set_active_theme(options.theme);
 
         Self {
             deals: vec![],
@@ -446,8 +456,7 @@ impl Model {
         self.select(Some(0));
     }
 
-    // ── Query methods ───────────────────────────────────────────────────
-
+    // Query methods
     pub fn filtered_deals(&self) -> Vec<&Deal> {
         let mut deals: Vec<&Deal> = match self.platform_filter.shop_id() {
             None => self.deals.iter().collect(),

@@ -1,4 +1,5 @@
 use crate::model::{SortCriteria, SortDirection, SortState};
+use crate::view::styles::Theme;
 use dealve_core::models::{Platform, Region};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -27,6 +28,9 @@ pub struct Config {
     /// Default sort direction (Ascending or Descending)
     #[serde(default = "default_sort_direction")]
     pub default_sort_direction: String,
+    /// Color theme
+    #[serde(default = "default_theme")]
+    pub theme: String,
 }
 
 fn default_region() -> String {
@@ -49,6 +53,10 @@ fn default_sort_direction() -> String {
     "Ascending".to_string()
 }
 
+fn default_theme() -> String {
+    "default".to_string()
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -60,6 +68,7 @@ impl Default for Config {
             api_key: None,
             default_sort_criteria: default_sort_criteria(),
             default_sort_direction: default_sort_direction(),
+            theme: default_theme(),
         }
     }
 }
@@ -124,6 +133,11 @@ impl Config {
         Region::from_code(&self.region).unwrap_or_default()
     }
 
+    /// Get the theme from config
+    pub fn get_theme(&self) -> Theme {
+        Theme::from_id(&self.theme).unwrap_or_default()
+    }
+
     /// Update from OptionsState
     pub fn update_from_options(
         &mut self,
@@ -131,6 +145,7 @@ impl Config {
         enabled_platforms: &HashSet<Platform>,
         region: Region,
         default_sort: SortState,
+        theme: Theme,
     ) {
         self.default_platform = default_platform.name().to_string();
         self.enabled_platforms = enabled_platforms
@@ -143,6 +158,7 @@ impl Config {
             SortDirection::Ascending => "Ascending".to_string(),
             SortDirection::Descending => "Descending".to_string(),
         };
+        self.theme = theme.id().to_string();
     }
 
     /// Get the default sort state from config
