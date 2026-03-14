@@ -76,7 +76,9 @@ async fn run(
     let full_screen = Rect::new(0, 0, term_size.width, term_size.height);
 
     let bg = view::styles::bg_dark();
-    let style = ratatui::style::Style::default().fg(bg).bg(bg);
+    let style = ratatui::style::Style::default()
+        .fg(bg)
+        .bg(ratatui::prelude::Color::Black);
 
     let timer = EffectTimer::from_ms(1200, Interpolation::CubicOut);
     effects.push((

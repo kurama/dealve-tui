@@ -597,7 +597,7 @@ pub async fn run_onboarding(
 
     let style = ratatui::style::Style::default()
         .fg(bg_dark())
-        .bg(Color::Rgb(10, 8, 15));
+        .bg(Color::Black);
 
     let timer = EffectTimer::from_ms(1000, Interpolation::CubicOut);
     effects.push((
