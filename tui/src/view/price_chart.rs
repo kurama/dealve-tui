@@ -63,20 +63,27 @@ pub fn render_price_chart(frame: &mut Frame, model: &Model, area: Rect, dimmed: 
             .split(inner);
 
         // Summary line
+        let low_color = if dimmed { text_dimmed() } else { green() };
+        let high_color = if dimmed { text_dimmed() } else { yellow() };
+        let now_color = if dimmed {
+            text_dimmed()
+        } else {
+            text_primary()
+        };
         let summary = Line::from(vec![
             Span::styled(
                 format!("Low: {}{:.2}", currency, min_price),
-                Style::default().fg(green()),
+                Style::default().fg(low_color),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("High: {}{:.2}", currency, max_price),
-                Style::default().fg(yellow()),
+                Style::default().fg(high_color),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("Now: {}{:.2}", currency, current_price),
-                Style::default().fg(text_primary()),
+                Style::default().fg(now_color),
             ),
         ]);
         frame.render_widget(Paragraph::new(summary), chunks[0]);
