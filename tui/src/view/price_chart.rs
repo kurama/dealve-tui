@@ -10,10 +10,18 @@ use super::styles::*;
 use crate::model::Model;
 
 pub fn render_price_chart(frame: &mut Frame, model: &Model, area: Rect, dimmed: bool) {
-    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_SECONDARY };
-    let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
-    let title_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let chart_color = if dimmed { TEXT_DIMMED } else { ACCENT_GREEN };
+    let text_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_secondary()
+    };
+    let border_color = if dimmed { text_dimmed() } else { accent() };
+    let title_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let chart_color = if dimmed { text_dimmed() } else { green() };
 
     let title = build_title("Price History (1 year)", border_color, title_color);
     let block = Block::default()
@@ -58,17 +66,17 @@ pub fn render_price_chart(frame: &mut Frame, model: &Model, area: Rect, dimmed: 
         let summary = Line::from(vec![
             Span::styled(
                 format!("Low: {}{:.2}", currency, min_price),
-                Style::default().fg(ACCENT_GREEN),
+                Style::default().fg(green()),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("High: {}{:.2}", currency, max_price),
-                Style::default().fg(ACCENT_YELLOW),
+                Style::default().fg(yellow()),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("Now: {}{:.2}", currency, current_price),
-                Style::default().fg(TEXT_PRIMARY),
+                Style::default().fg(text_primary()),
             ),
         ]);
         frame.render_widget(Paragraph::new(summary), chunks[0]);

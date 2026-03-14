@@ -28,7 +28,7 @@ pub fn render_menu_overlay(frame: &mut Frame, model: &Model) {
 
     let logo_lines: Vec<Line> = ASCII_LOGO
         .iter()
-        .map(|line| Line::from(Span::styled(*line, Style::default().fg(PURPLE_PRIMARY))))
+        .map(|line| Line::from(Span::styled(*line, Style::default().fg(primary()))))
         .collect();
     let logo = Paragraph::new(logo_lines).alignment(Alignment::Center);
     frame.render_widget(logo, logo_area);
@@ -45,11 +45,11 @@ pub fn render_menu_overlay(frame: &mut Frame, model: &Model) {
         .map(|(i, item)| {
             let style = if i == model.ui.menu_selected {
                 Style::default()
-                    .bg(BG_HIGHLIGHT)
-                    .fg(PURPLE_LIGHT)
+                    .bg(bg_highlight())
+                    .fg(primary_light())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(TEXT_SECONDARY)
+                Style::default().fg(text_secondary())
             };
             let prefix = if i == model.ui.menu_selected {
                 "> "
@@ -63,7 +63,7 @@ pub fn render_menu_overlay(frame: &mut Frame, model: &Model) {
     let menu = List::new(items).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(PURPLE_LIGHT)),
+            .border_style(Style::default().fg(primary_light())),
     );
 
     frame.render_widget(menu, menu_area);
@@ -80,9 +80,12 @@ pub fn render_options_popup(frame: &mut Frame, model: &Model) {
     frame.render_widget(Clear, popup_area);
 
     let block = Block::default()
-        .title(Span::styled(" Options ", Style::default().fg(PURPLE_LIGHT)))
+        .title(Span::styled(
+            " Options ",
+            Style::default().fg(primary_light()),
+        ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(PURPLE_ACCENT));
+        .border_style(Style::default().fg(accent()));
     frame.render_widget(block, popup_area);
 
     let inner = Rect::new(
@@ -106,14 +109,14 @@ pub fn render_options_popup(frame: &mut Frame, model: &Model) {
                 Span::styled(
                     format!(" {} ", tab.name()),
                     Style::default()
-                        .fg(TEXT_PRIMARY)
-                        .bg(PURPLE_ACCENT)
+                        .fg(text_primary())
+                        .bg(accent())
                         .add_modifier(Modifier::BOLD),
                 )
             } else {
                 Span::styled(
                     format!(" {} ", tab.name()),
-                    Style::default().fg(TEXT_SECONDARY),
+                    Style::default().fg(text_secondary()),
                 )
             }
         })
@@ -128,6 +131,7 @@ pub fn render_options_popup(frame: &mut Frame, model: &Model) {
         OptionsTab::Region => render_region_tab(frame, model, content_area),
         OptionsTab::Platforms => render_platforms_tab(frame, model, content_area),
         OptionsTab::Advanced => render_advanced_tab(frame, model, content_area),
+        OptionsTab::Theme => render_theme_tab(frame, model, content_area),
     }
 }
 
@@ -143,7 +147,7 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
 
     let desc = Paragraph::new(Line::from(Span::styled(
         "Select your region for local prices:",
-        Style::default().fg(TEXT_SECONDARY),
+        Style::default().fg(text_secondary()),
     )));
     frame.render_widget(desc, chunks[0]);
 
@@ -161,7 +165,7 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
             region_lines.push(Line::from(Span::styled(
                 format!(" — {} —", current_continent),
                 Style::default()
-                    .fg(PURPLE_LIGHT)
+                    .fg(primary_light())
                     .add_modifier(Modifier::BOLD),
             )));
         }
@@ -175,11 +179,11 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
 
         let marker = if is_current { "●" } else { "○" };
         let line_style = if is_selected {
-            Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+            Style::default().fg(text_primary()).bg(accent())
         } else if is_current {
-            Style::default().fg(PURPLE_LIGHT)
+            Style::default().fg(primary_light())
         } else {
-            Style::default().fg(TEXT_PRIMARY)
+            Style::default().fg(text_primary())
         };
 
         region_lines.push(Line::from(Span::styled(
@@ -200,15 +204,18 @@ fn render_region_tab(frame: &mut Frame, model: &Model, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(PURPLE_ACCENT))
-                .title(Span::styled(" Region ", Style::default().fg(PURPLE_LIGHT))),
+                .border_style(Style::default().fg(accent()))
+                .title(Span::styled(
+                    " Region ",
+                    Style::default().fg(primary_light()),
+                )),
         )
         .scroll((scroll_offset, 0));
     frame.render_widget(region_list, chunks[1]);
 
     let help = Paragraph::new(Line::from(Span::styled(
         "[Enter] Select  [Tab] Switch tab  [Esc] Close",
-        Style::default().fg(TEXT_SECONDARY),
+        Style::default().fg(text_secondary()),
     )));
     frame.render_widget(help, chunks[2]);
 }
@@ -226,18 +233,18 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
     // Default platform selector (index 0)
     let is_default_selected = model.options.platform_list_index == 0;
     let default_style = if is_default_selected {
-        Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+        Style::default().fg(text_primary()).bg(accent())
     } else {
-        Style::default().fg(TEXT_PRIMARY)
+        Style::default().fg(text_primary())
     };
     let default_line = Line::from(vec![
-        Span::styled("Default: ", Style::default().fg(PURPLE_LIGHT)),
+        Span::styled("Default: ", Style::default().fg(primary_light())),
         Span::styled(
             format!("{} ", model.options.default_platform.name()),
             default_style,
         ),
         if is_default_selected {
-            Span::styled("[Enter to change]", Style::default().fg(TEXT_SECONDARY))
+            Span::styled("[Enter to change]", Style::default().fg(text_secondary()))
         } else {
             Span::raw("")
         },
@@ -259,11 +266,11 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
         let checkbox = if is_enabled { "[x]" } else { "[ ]" };
 
         let line_style = if is_selected {
-            Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+            Style::default().fg(text_primary()).bg(accent())
         } else if is_enabled {
-            Style::default().fg(TEXT_PRIMARY)
+            Style::default().fg(text_primary())
         } else {
-            Style::default().fg(TEXT_DIMMED)
+            Style::default().fg(text_dimmed())
         };
 
         platform_lines.push(Line::from(Span::styled(
@@ -289,10 +296,10 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(PURPLE_ACCENT))
+                .border_style(Style::default().fg(accent()))
                 .title(Span::styled(
                     " Enabled Platforms ",
-                    Style::default().fg(PURPLE_LIGHT),
+                    Style::default().fg(primary_light()),
                 )),
         )
         .scroll((scroll_offset, 0));
@@ -300,7 +307,7 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
 
     let help = Paragraph::new(Line::from(Span::styled(
         "[Enter] Toggle  [Tab] Switch tab  [Esc] Close",
-        Style::default().fg(TEXT_SECONDARY),
+        Style::default().fg(text_secondary()),
     )));
     frame.render_widget(help, chunks[2]);
 }
@@ -317,7 +324,7 @@ fn render_advanced_tab(frame: &mut Frame, model: &Model, area: Rect) {
 
     let desc = Paragraph::new(Line::from(Span::styled(
         "Default sort and performance settings:",
-        Style::default().fg(TEXT_SECONDARY),
+        Style::default().fg(text_secondary()),
     )));
     frame.render_widget(desc, chunks[0]);
 
@@ -345,26 +352,26 @@ fn render_advanced_tab(frame: &mut Frame, model: &Model, area: Rect) {
         let is_selected = model.options.advanced_list_index == i;
 
         let line_style = if is_selected {
-            Style::default().fg(TEXT_PRIMARY).bg(BG_HIGHLIGHT)
+            Style::default().fg(text_primary()).bg(bg_highlight())
         } else {
-            Style::default().fg(TEXT_PRIMARY)
+            Style::default().fg(text_primary())
         };
 
         let value_style = if is_selected {
             Style::default()
-                .fg(PURPLE_LIGHT)
-                .bg(BG_HIGHLIGHT)
+                .fg(primary_light())
+                .bg(bg_highlight())
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
-                .fg(PURPLE_LIGHT)
+                .fg(primary_light())
                 .add_modifier(Modifier::BOLD)
         };
 
         let desc_style = if is_selected {
-            Style::default().fg(TEXT_SECONDARY).bg(BG_HIGHLIGHT)
+            Style::default().fg(text_secondary()).bg(bg_highlight())
         } else {
-            Style::default().fg(TEXT_SECONDARY)
+            Style::default().fg(text_secondary())
         };
 
         setting_lines.push(Line::from(vec![
@@ -377,10 +384,10 @@ fn render_advanced_tab(frame: &mut Frame, model: &Model, area: Rect) {
     let settings_list = Paragraph::new(setting_lines).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(PURPLE_ACCENT))
+            .border_style(Style::default().fg(accent()))
             .title(Span::styled(
                 " Settings ",
-                Style::default().fg(PURPLE_LIGHT),
+                Style::default().fg(primary_light()),
             )),
     );
     frame.render_widget(settings_list, chunks[1]);
@@ -388,14 +395,87 @@ fn render_advanced_tab(frame: &mut Frame, model: &Model, area: Rect) {
     let help_lines = vec![
         Line::from(Span::styled(
             "[Enter] Cycle  [s] Direction  [Tab] Switch tab",
-            Style::default().fg(TEXT_SECONDARY),
+            Style::default().fg(text_secondary()),
         )),
         Line::from(Span::styled(
             "[Esc] Close",
-            Style::default().fg(TEXT_SECONDARY),
+            Style::default().fg(text_secondary()),
         )),
     ];
     let help = Paragraph::new(help_lines);
+    frame.render_widget(help, chunks[2]);
+}
+
+fn render_theme_tab(frame: &mut Frame, model: &Model, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(5),
+            Constraint::Length(2),
+        ])
+        .split(area);
+
+    let desc = Paragraph::new(Line::from(Span::styled(
+        "Select a color theme:",
+        Style::default().fg(text_secondary()),
+    )));
+    frame.render_widget(desc, chunks[0]);
+
+    let mut theme_lines: Vec<Line> = Vec::new();
+    for (i, theme) in Theme::ALL.iter().enumerate() {
+        let is_selected = model.options.theme_list_index == i;
+        let is_current = model.options.theme == *theme;
+
+        let marker = if is_current { "●" } else { "○" };
+
+        let line_style = if is_selected {
+            Style::default().fg(text_primary()).bg(accent())
+        } else if is_current {
+            Style::default().fg(primary_light())
+        } else {
+            Style::default().fg(text_primary())
+        };
+
+        // Show color preview swatches including background colors
+        let p = theme.palette();
+        let preview = Line::from(vec![
+            Span::styled(format!(" {} {:<20}", marker, theme.name()), line_style),
+            Span::styled("██", Style::default().fg(p.bg)),
+            Span::styled("██", Style::default().fg(p.bg_highlight)),
+            Span::styled("██", Style::default().fg(p.primary)),
+            Span::styled("██", Style::default().fg(p.green)),
+            Span::styled("██", Style::default().fg(p.yellow)),
+            Span::styled("██", Style::default().fg(p.accent)),
+        ]);
+        theme_lines.push(preview);
+    }
+
+    // Calculate scroll offset
+    let visible_height = chunks[1].height.saturating_sub(2) as usize;
+    let scroll_offset = if model.options.theme_list_index >= visible_height {
+        (model.options.theme_list_index - visible_height + 1) as u16
+    } else {
+        0
+    };
+
+    let theme_list = Paragraph::new(theme_lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(accent()))
+                .title(Span::styled(
+                    " Theme ",
+                    Style::default().fg(primary_light()),
+                )),
+        )
+        .scroll((scroll_offset, 0));
+    frame.render_widget(theme_list, chunks[1]);
+
+    let help = Paragraph::new(Line::from(Span::styled(
+        "[Enter] Select  [Tab] Switch tab  [Esc] Close",
+        Style::default().fg(text_secondary()),
+    )));
     frame.render_widget(help, chunks[2]);
 }
 
@@ -429,15 +509,15 @@ pub fn render_keybinds_popup(frame: &mut Frame) {
     ];
 
     let popup = Paragraph::new(content.join("\n"))
-        .style(Style::default().fg(TEXT_PRIMARY))
+        .style(Style::default().fg(text_primary()))
         .block(
             Block::default()
                 .title(Span::styled(
                     " Keybinds ",
-                    Style::default().fg(PURPLE_LIGHT),
+                    Style::default().fg(primary_light()),
                 ))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(PURPLE_PRIMARY)),
+                .border_style(Style::default().fg(primary())),
         );
 
     frame.render_widget(popup, popup_area);
@@ -458,10 +538,10 @@ pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
     let block = Block::default()
         .title(Span::styled(
             " Select Platform ",
-            Style::default().fg(PURPLE_LIGHT),
+            Style::default().fg(primary_light()),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(PURPLE_ACCENT));
+        .border_style(Style::default().fg(accent()));
     frame.render_widget(block, popup_area);
 
     let inner = Rect::new(
@@ -483,11 +563,11 @@ pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
 
         let marker = if is_current { "●" } else { "○" };
         let line_style = if is_selected {
-            Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+            Style::default().fg(text_primary()).bg(accent())
         } else if is_current {
-            Style::default().fg(PURPLE_LIGHT)
+            Style::default().fg(primary_light())
         } else {
-            Style::default().fg(TEXT_PRIMARY)
+            Style::default().fg(text_primary())
         };
 
         platform_lines.push(Line::from(Span::styled(
@@ -509,7 +589,7 @@ pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
 
     let help = Paragraph::new(Line::from(Span::styled(
         "[Enter] Select  [Esc] Cancel",
-        Style::default().fg(TEXT_SECONDARY),
+        Style::default().fg(text_secondary()),
     )));
     frame.render_widget(help, chunks[1]);
 }
@@ -527,10 +607,10 @@ pub fn render_price_filter_popup(frame: &mut Frame, model: &Model) {
     let block = Block::default()
         .title(Span::styled(
             " Price Filter ",
-            Style::default().fg(PURPLE_LIGHT),
+            Style::default().fg(primary_light()),
         ))
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(PURPLE_ACCENT));
+        .border_style(Style::default().fg(accent()));
     frame.render_widget(block, popup_area);
 
     let inner = Rect::new(
@@ -544,15 +624,15 @@ pub fn render_price_filter_popup(frame: &mut Frame, model: &Model) {
     let max_selected = model.price_filter.selected_field == 1;
 
     let min_style = if min_selected {
-        Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+        Style::default().fg(text_primary()).bg(accent())
     } else {
-        Style::default().fg(TEXT_PRIMARY)
+        Style::default().fg(text_primary())
     };
 
     let max_style = if max_selected {
-        Style::default().fg(TEXT_PRIMARY).bg(PURPLE_ACCENT)
+        Style::default().fg(text_primary()).bg(accent())
     } else {
-        Style::default().fg(TEXT_PRIMARY)
+        Style::default().fg(text_primary())
     };
 
     let min_cursor = if min_selected { "▋" } else { "" };
@@ -563,22 +643,22 @@ pub fn render_price_filter_popup(frame: &mut Frame, model: &Model) {
 
     let content = vec![
         Line::from(vec![
-            Span::styled("Min: ", Style::default().fg(PURPLE_LIGHT)),
+            Span::styled("Min: ", Style::default().fg(primary_light())),
             Span::styled(format!("{:<10}", min_display), min_style),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Max: ", Style::default().fg(PURPLE_LIGHT)),
+            Span::styled("Max: ", Style::default().fg(primary_light())),
             Span::styled(format!("{:<10}", max_display), max_style),
         ]),
         Line::from(""),
         Line::from(Span::styled(
             "[Tab] Switch  [Enter] Apply",
-            Style::default().fg(TEXT_SECONDARY),
+            Style::default().fg(text_secondary()),
         )),
         Line::from(Span::styled(
             "[c] Clear  [Esc] Cancel",
-            Style::default().fg(TEXT_SECONDARY),
+            Style::default().fg(text_secondary()),
         )),
     ];
 

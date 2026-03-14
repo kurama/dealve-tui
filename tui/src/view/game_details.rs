@@ -10,14 +10,30 @@ use super::styles::*;
 use crate::model::Model;
 
 pub fn render_game_details(frame: &mut Frame, model: &Model, area: Rect, dimmed: bool) {
-    let text_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let label_color = if dimmed { TEXT_DIMMED } else { PURPLE_LIGHT };
-    let border_color = if dimmed { TEXT_DIMMED } else { PURPLE_ACCENT };
-    let title_color = if dimmed { TEXT_DIMMED } else { TEXT_PRIMARY };
-    let purple_color = if dimmed { TEXT_DIMMED } else { PURPLE_PRIMARY };
-    let green_color = if dimmed { TEXT_DIMMED } else { ACCENT_GREEN };
-    let yellow_color = if dimmed { TEXT_DIMMED } else { ACCENT_YELLOW };
-    let secondary_color = if dimmed { TEXT_DIMMED } else { TEXT_SECONDARY };
+    let text_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let label_color = if dimmed {
+        text_dimmed()
+    } else {
+        primary_light()
+    };
+    let border_color = if dimmed { text_dimmed() } else { accent() };
+    let title_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_primary()
+    };
+    let purple_color = if dimmed { text_dimmed() } else { primary() };
+    let green_color = if dimmed { text_dimmed() } else { green() };
+    let yellow_color = if dimmed { text_dimmed() } else { yellow() };
+    let secondary_color = if dimmed {
+        text_dimmed()
+    } else {
+        text_secondary()
+    };
 
     let title = build_title("Game Details", border_color, title_color);
     let block = Block::default()
