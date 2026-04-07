@@ -1,10 +1,38 @@
 use crate::model::{SortCriteria, SortDirection, SortState};
 use crate::view::styles::Theme;
-use dealve_core::models::{Platform, Region};
+use dealve_core::models::{Platform, PlatformGroup, Region};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
+
+/// A platform group as stored in the config file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigPlatformGroup {
+    pub name: String,
+    pub platforms: Vec<String>,
+}
+
+impl ConfigPlatformGroup {
+    pub fn to_platform_group(&self) -> PlatformGroup {
+        let platforms: Vec<Platform> = self
+            .platforms
+            .iter()
+            .filter_map(|name| Platform::ALL.iter().find(|p| p.name() == name).copied())
+            .collect();
+        PlatformGroup {
+            name: self.name.clone(),
+            platforms,
+        }
+    }
+
+    pub fn from_platform_group(group: &PlatformGroup) -> Self {
+        ConfigPlatformGroup {
+            name: group.name.clone(),
+            platforms: group.platforms.iter().map(|p| p.name().to_string()).collect(),
+        }
+    }
+}
 
 /// Persistent configuration saved to disk
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,6 +59,9 @@ pub struct Config {
     /// Color theme
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// Custom platform groups
+    #[serde(default)]
+    pub platform_groups: Vec<ConfigPlatformGroup>,
 }
 
 fn default_region() -> String {
@@ -69,6 +100,7 @@ impl Default for Config {
             default_sort_criteria: default_sort_criteria(),
             default_sort_direction: default_sort_direction(),
             theme: default_theme(),
+            platform_groups: Vec::new(),
         }
     }
 }
@@ -128,6 +160,14 @@ impl Config {
             .collect()
     }
 
+    /// Convert platform_groups config to PlatformGroup structs
+    pub fn get_platform_groups(&self) -> Vec<PlatformGroup> {
+        self.platform_groups
+            .iter()
+            .map(|g| g.to_platform_group())
+            .collect()
+    }
+
     /// Get the region from config
     pub fn get_region(&self) -> Region {
         Region::from_code(&self.region).unwrap_or_default()
@@ -143,6 +183,7 @@ impl Config {
         &mut self,
         default_platform: Platform,
         enabled_platforms: &HashSet<Platform>,
+        platform_groups: &[PlatformGroup],
         region: Region,
         default_sort: SortState,
         theme: Theme,
@@ -151,6 +192,10 @@ impl Config {
         self.enabled_platforms = enabled_platforms
             .iter()
             .map(|p| p.name().to_string())
+            .collect();
+        self.platform_groups = platform_groups
+            .iter()
+            .map(|g| ConfigPlatformGroup::from_platform_group(g))
             .collect();
         self.region = region.code().to_string();
         self.default_sort_criteria = default_sort.criteria.name().to_string();

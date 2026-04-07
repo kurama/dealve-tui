@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use dealve_core::models::{Deal, PriceHistoryPoint};
+use dealve_core::models::{Deal, PlatformFilter, PriceHistoryPoint};
 use tokio::task::JoinHandle;
 
 use crate::message::Message;
@@ -39,7 +39,7 @@ impl TaskManager {
 
 pub fn spawn_deals_load(
     api_key: Option<String>,
-    platform_filter: dealve_core::models::Platform,
+    platform_filter: PlatformFilter,
     region_code: String,
     offset: usize,
     page_size: usize,
@@ -47,9 +47,9 @@ pub fn spawn_deals_load(
 ) -> DealsLoadTask {
     tokio::spawn(async move {
         let client = dealve_api::ItadClient::new(api_key);
-        let shop_id = platform_filter.shop_id();
+        let shops = platform_filter.shop_ids_param();
         client
-            .get_deals(&region_code, page_size, offset, shop_id, Some(&sort))
+            .get_deals(&region_code, page_size, offset, shops, Some(&sort))
             .await
     })
 }
@@ -61,7 +61,7 @@ const MAX_SEARCH_RESULTS: usize = 100;
 pub fn spawn_search_load(
     api_key: Option<String>,
     query: String,
-    platform_filter: dealve_core::models::Platform,
+    platform_filter: PlatformFilter,
     region_code: String,
     limit: usize,
 ) -> DealsLoadTask {
@@ -71,7 +71,7 @@ pub fn spawn_search_load(
             .search_deals(
                 &query,
                 &region_code,
-                platform_filter.shop_id(),
+                platform_filter.shop_ids_param(),
                 limit.min(MAX_SEARCH_RESULTS),
             )
             .await
@@ -97,7 +97,7 @@ pub fn start_load(model: &mut Model, tasks: &mut TaskManager) {
         tasks.load_task = Some(spawn_search_load(
             model.api_key.clone(),
             query,
-            model.platform_filter,
+            model.platform_filter.clone(),
             model.region.code().to_string(),
             model.deals_page_size,
         ));
@@ -105,7 +105,7 @@ pub fn start_load(model: &mut Model, tasks: &mut TaskManager) {
         tasks.load_task_kind = Some(LoadTaskKind::StandardDeals);
         tasks.load_task = Some(spawn_deals_load(
             model.api_key.clone(),
-            model.platform_filter,
+            model.platform_filter.clone(),
             model.region.code().to_string(),
             0,
             model.deals_page_size,
@@ -211,7 +211,7 @@ pub async fn check_tasks(model: &mut Model, tasks: &mut TaskManager) -> Vec<Mess
         model.pagination.loading_more = true;
         tasks.load_more_task = Some(spawn_deals_load(
             model.api_key.clone(),
-            model.platform_filter,
+            model.platform_filter.clone(),
             model.region.code().to_string(),
             model.pagination.offset,
             model.deals_page_size,

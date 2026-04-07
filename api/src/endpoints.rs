@@ -16,7 +16,7 @@ impl ItadClient {
         country: &str,
         limit: usize,
         offset: usize,
-        shop_id: Option<u32>,
+        shops: Option<String>,
         sort: Option<&str>,
     ) -> Result<Vec<Deal>> {
         let api_key = self
@@ -32,8 +32,8 @@ impl ItadClient {
             ("offset", offset.to_string()),
         ];
 
-        if let Some(id) = shop_id {
-            query_params.push(("shops", id.to_string()));
+        if let Some(ids) = shops {
+            query_params.push(("shops", ids));
         }
 
         if let Some(s) = sort {
@@ -140,7 +140,7 @@ impl ItadClient {
         &self,
         ids: &[String],
         country: &str,
-        shop_id: Option<u32>,
+        shops: Option<String>,
     ) -> Result<Vec<GamePriceItem>> {
         let api_key = self
             .api_key()
@@ -158,10 +158,9 @@ impl ItadClient {
             ("deals", "true".to_string()),
         ];
 
-        if let Some(id) = shop_id {
-            // Single shop: one deal per game is enough
+        if let Some(ids) = shops {
             query_params.push(("capacity", "1".to_string()));
-            query_params.push(("shops", id.to_string()));
+            query_params.push(("shops", ids));
         }
 
         let response = self
@@ -192,7 +191,7 @@ impl ItadClient {
         &self,
         query: &str,
         country: &str,
-        shop_id: Option<u32>,
+        shops: Option<String>,
         limit: usize,
     ) -> Result<Vec<Deal>> {
         let query = query.trim();
@@ -216,7 +215,7 @@ impl ItadClient {
             titles_by_id.insert(result.id, result.title);
         }
 
-        let prices = self.get_prices_for_games(&ids, country, shop_id).await?;
+        let prices = self.get_prices_for_games(&ids, country, shops).await?;
         let mut deals_by_id: HashMap<String, (DealInfo, Option<f64>)> = HashMap::new();
 
         for price_item in prices {

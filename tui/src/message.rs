@@ -38,6 +38,19 @@ pub enum Message {
     PlatformPopupPrev,
     PlatformPopupSelect,
 
+    // Group editor
+    OpenGroupEditor,
+    EditGroup(usize),
+    DeleteGroup(usize),
+    GroupEditorSwitchField,
+    GroupEditorPush(char),
+    GroupEditorPop,
+    GroupEditorNext,
+    GroupEditorPrev,
+    GroupEditorToggle,
+    GroupEditorSave,
+    GroupEditorCancel,
+
     // Sort
     ToggleSortDirection,
     NextSortCriteria,

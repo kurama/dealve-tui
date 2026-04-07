@@ -497,6 +497,87 @@ impl Platform {
     ];
 }
 
+/// A named group of platforms for filtering deals across multiple stores at once
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlatformGroup {
+    pub name: String,
+    pub platforms: Vec<Platform>,
+}
+
+impl PlatformGroup {
+    pub fn shop_ids_param(&self) -> Option<String> {
+        let ids: Vec<String> = self
+            .platforms
+            .iter()
+            .filter_map(|p| p.shop_id())
+            .map(|id| id.to_string())
+            .collect();
+        if ids.is_empty() {
+            None
+        } else {
+            Some(ids.join(","))
+        }
+    }
+
+    pub fn display_name(&self) -> &str {
+        &self.name
+    }
+}
+
+/// Active platform filter: all platforms, a single platform, or a custom group
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlatformFilter {
+    All,
+    Single(Platform),
+    Group(PlatformGroup),
+}
+
+impl PlatformFilter {
+    /// Returns comma-separated shop IDs for the API `shops` param, or None for "all"
+    pub fn shop_ids_param(&self) -> Option<String> {
+        match self {
+            PlatformFilter::All => None,
+            PlatformFilter::Single(p) => p.shop_id().map(|id| id.to_string()),
+            PlatformFilter::Group(g) => g.shop_ids_param(),
+        }
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            PlatformFilter::All => "All Platforms".to_string(),
+            PlatformFilter::Single(p) => p.name().to_string(),
+            PlatformFilter::Group(g) => g.name.clone(),
+        }
+    }
+
+    /// Returns the set of shop ID strings that pass the filter (for client-side filtering)
+    pub fn shop_id_set(&self) -> Option<Vec<String>> {
+        match self {
+            PlatformFilter::All => None,
+            PlatformFilter::Single(p) => p.shop_id().map(|id| vec![id.to_string()]),
+            PlatformFilter::Group(g) => {
+                let ids: Vec<String> = g
+                    .platforms
+                    .iter()
+                    .filter_map(|p| p.shop_id())
+                    .map(|id| id.to_string())
+                    .collect();
+                if ids.is_empty() {
+                    None
+                } else {
+                    Some(ids)
+                }
+            }
+        }
+    }
+}
+
+impl Default for PlatformFilter {
+    fn default() -> Self {
+        PlatformFilter::All
+    }
+}
+
 /// Represents a game deal from IsThereAnyDeal
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deal {

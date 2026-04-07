@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use super::styles::*;
-use crate::model::{MenuItem, Model, OptionsTab};
-use dealve_core::models::{Platform, Region};
+use crate::model::{GroupEditorField, MenuItem, Model, OptionsTab};
+use dealve_core::models::{PlatformFilter, Region};
 
 pub fn render_menu_overlay(frame: &mut Frame, model: &Model) {
     let area = frame.area();
@@ -251,16 +251,62 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
     ]);
     frame.render_widget(Paragraph::new(default_line), chunks[0]);
 
-    // Platform list with checkboxes (skip Platform::All)
-    let platforms_without_all: Vec<&Platform> = Platform::ALL
-        .iter()
-        .filter(|p| **p != Platform::All)
-        .collect();
+    let groups_len = model.options.platform_groups.len();
+    let platforms_without_all = Model::platforms_without_all();
 
-    let mut platform_lines: Vec<Line> = Vec::new();
-    for (i, platform) in platforms_without_all.iter().enumerate() {
+    let mut list_lines: Vec<Line> = Vec::new();
+    let mut selected_rendered_line: usize = 0;
+
+    // Groups section
+    for (i, group) in model.options.platform_groups.iter().enumerate() {
         let list_index = i + 1;
         let is_selected = model.options.platform_list_index == list_index;
+        if is_selected {
+            selected_rendered_line = list_lines.len();
+        }
+
+        let line_style = if is_selected {
+            Style::default().fg(text_primary()).bg(accent())
+        } else {
+            Style::default().fg(primary())
+        };
+
+        let count = group.platforms.len();
+        list_lines.push(Line::from(Span::styled(
+            format!(" ▣ {} ({} platforms)", group.name, count),
+            line_style,
+        )));
+    }
+
+    // "+ New Group" button
+    let new_group_index = groups_len + 1;
+    let is_new_group_selected = model.options.platform_list_index == new_group_index;
+    if is_new_group_selected {
+        selected_rendered_line = list_lines.len();
+    }
+    let new_group_style = if is_new_group_selected {
+        Style::default().fg(text_primary()).bg(accent())
+    } else {
+        Style::default().fg(text_secondary())
+    };
+    list_lines.push(Line::from(Span::styled(
+        " + New Group",
+        new_group_style,
+    )));
+
+    // Separator
+    list_lines.push(Line::from(Span::styled(
+        " ───────────────────────────",
+        Style::default().fg(text_dimmed()),
+    )));
+
+    // Platform list with checkboxes (skip Platform::All)
+    for (i, platform) in platforms_without_all.iter().enumerate() {
+        let list_index = i + groups_len + 2;
+        let is_selected = model.options.platform_list_index == list_index;
+        if is_selected {
+            selected_rendered_line = list_lines.len();
+        }
         let is_enabled = model.options.enabled_platforms.contains(platform);
 
         let checkbox = if is_enabled { "[x]" } else { "[ ]" };
@@ -273,32 +319,27 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
             Style::default().fg(text_dimmed())
         };
 
-        platform_lines.push(Line::from(Span::styled(
+        list_lines.push(Line::from(Span::styled(
             format!(" {} {}", checkbox, platform.name()),
             line_style,
         )));
     }
 
-    // Calculate scroll offset
+    // Calculate scroll offset based on actual rendered line position
     let visible_height = chunks[1].height.saturating_sub(2) as usize;
-    let scroll_offset = if model.options.platform_list_index > 0 {
-        let adjusted_index = model.options.platform_list_index - 1;
-        if adjusted_index >= visible_height {
-            (adjusted_index - visible_height + 1) as u16
-        } else {
-            0
-        }
+    let scroll_offset = if selected_rendered_line >= visible_height {
+        (selected_rendered_line - visible_height + 1) as u16
     } else {
         0
     };
 
-    let platforms_list = Paragraph::new(platform_lines)
+    let platforms_list = Paragraph::new(list_lines)
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(accent()))
                 .title(Span::styled(
-                    " Enabled Platforms ",
+                    " Groups & Platforms ",
                     Style::default().fg(primary_light()),
                 )),
         )
@@ -306,7 +347,7 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
     frame.render_widget(platforms_list, chunks[1]);
 
     let help = Paragraph::new(Line::from(Span::styled(
-        "[Enter] Toggle  [Tab] Switch tab  [Esc] Close",
+        "[Enter] Toggle/Edit  [d] Delete group  [Tab] Tab  [Esc] Close",
         Style::default().fg(text_secondary()),
     )));
     frame.render_widget(help, chunks[2]);
@@ -525,10 +566,10 @@ pub fn render_keybinds_popup(frame: &mut Frame) {
 
 pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
     let area = frame.area();
-    let enabled_platforms = model.enabled_platforms();
+    let filters = model.selectable_filters();
 
     let popup_width = 35u16;
-    let popup_height = (enabled_platforms.len() as u16 + 5).min(20);
+    let popup_height = (filters.len() as u16 + 5).min(20);
     let popup_x = area.width.saturating_sub(popup_width) / 2;
     let popup_y = area.height.saturating_sub(popup_height) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
@@ -556,22 +597,37 @@ pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
         .constraints([Constraint::Min(1), Constraint::Length(1)])
         .split(inner);
 
-    let mut platform_lines: Vec<Line> = Vec::new();
-    for (i, platform) in enabled_platforms.iter().enumerate() {
+    let mut lines: Vec<Line> = Vec::new();
+    let mut prev_was_group = false;
+    for (i, filter) in filters.iter().enumerate() {
         let is_selected = model.ui.platform_popup_index == i;
-        let is_current = model.platform_filter == *platform;
+        let is_current = model.platform_filter == *filter;
+
+        // Add separator between groups and individual platforms
+        let is_group = matches!(filter, PlatformFilter::Group(_));
+        let is_single = matches!(filter, PlatformFilter::Single(_));
+        if is_single && prev_was_group {
+            lines.push(Line::from(Span::styled(
+                " ───────────────────",
+                Style::default().fg(text_dimmed()),
+            )));
+        }
+        prev_was_group = is_group;
 
         let marker = if is_current { "●" } else { "○" };
+        let prefix = if is_group { "▣ " } else { "" };
         let line_style = if is_selected {
             Style::default().fg(text_primary()).bg(accent())
         } else if is_current {
             Style::default().fg(primary_light())
+        } else if is_group {
+            Style::default().fg(primary())
         } else {
             Style::default().fg(text_primary())
         };
 
-        platform_lines.push(Line::from(Span::styled(
-            format!(" {} {}", marker, platform.name()),
+        lines.push(Line::from(Span::styled(
+            format!(" {} {}{}", marker, prefix, filter.name()),
             line_style,
         )));
     }
@@ -584,7 +640,7 @@ pub fn render_platform_popup(frame: &mut Frame, model: &Model) {
         0
     };
 
-    let platform_list = Paragraph::new(platform_lines).scroll((scroll_offset, 0));
+    let platform_list = Paragraph::new(lines).scroll((scroll_offset, 0));
     frame.render_widget(platform_list, chunks[0]);
 
     let help = Paragraph::new(Line::from(Span::styled(
@@ -664,4 +720,128 @@ pub fn render_price_filter_popup(frame: &mut Frame, model: &Model) {
 
     let paragraph = Paragraph::new(content);
     frame.render_widget(paragraph, inner);
+}
+
+pub fn render_group_editor_popup(frame: &mut Frame, model: &Model) {
+    let area = frame.area();
+    let popup_width = 45u16;
+    let popup_height = 22u16;
+    let popup_x = area.width.saturating_sub(popup_width) / 2;
+    let popup_y = area.height.saturating_sub(popup_height) / 2;
+    let popup_area = Rect::new(popup_x, popup_y, popup_width, popup_height);
+
+    frame.render_widget(Clear, popup_area);
+
+    let title = if model.group_editor.editing_index.is_some() {
+        " Edit Group "
+    } else {
+        " New Group "
+    };
+
+    let block = Block::default()
+        .title(Span::styled(title, Style::default().fg(primary_light())))
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(accent()));
+    frame.render_widget(block, popup_area);
+
+    let inner = Rect::new(
+        popup_area.x + 2,
+        popup_area.y + 2,
+        popup_area.width - 4,
+        popup_area.height - 4,
+    );
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(5),
+            Constraint::Length(3),
+        ])
+        .split(inner);
+
+    // Name field
+    let name_active = model.group_editor.field == GroupEditorField::Name;
+    let name_style = if name_active {
+        Style::default().fg(text_primary()).bg(accent())
+    } else {
+        Style::default().fg(text_primary())
+    };
+    let cursor = if name_active { "▋" } else { "" };
+    let name_line = Line::from(vec![
+        Span::styled("Name: ", Style::default().fg(primary_light())),
+        Span::styled(
+            format!("{}{}", model.group_editor.name, cursor),
+            name_style,
+        ),
+    ]);
+    frame.render_widget(Paragraph::new(name_line), chunks[0]);
+
+    // Platforms checklist
+    let platforms = Model::platforms_without_all();
+    let plat_active = model.group_editor.field == GroupEditorField::Platforms;
+
+    let mut plat_lines: Vec<Line> = Vec::new();
+    for (i, platform) in platforms.iter().enumerate() {
+        let is_selected = plat_active && model.group_editor.platform_index == i;
+        let is_checked = model.group_editor.selected_platforms.contains(platform);
+
+        let checkbox = if is_checked { "[x]" } else { "[ ]" };
+
+        let line_style = if is_selected {
+            Style::default().fg(text_primary()).bg(accent())
+        } else if is_checked {
+            Style::default().fg(primary_light())
+        } else {
+            Style::default().fg(text_primary())
+        };
+
+        plat_lines.push(Line::from(Span::styled(
+            format!(" {} {}", checkbox, platform.name()),
+            line_style,
+        )));
+    }
+
+    let visible_height = chunks[1].height.saturating_sub(2) as usize;
+    let scroll_offset = if model.group_editor.platform_index >= visible_height {
+        (model.group_editor.platform_index - visible_height + 1) as u16
+    } else {
+        0
+    };
+
+    let plat_block_style = if plat_active {
+        Style::default().fg(accent())
+    } else {
+        Style::default().fg(text_dimmed())
+    };
+
+    let plat_list = Paragraph::new(plat_lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(plat_block_style)
+                .title(Span::styled(
+                    " Platforms ",
+                    Style::default().fg(primary_light()),
+                )),
+        )
+        .scroll((scroll_offset, 0));
+    frame.render_widget(plat_list, chunks[1]);
+
+    let selected_count = model.group_editor.selected_platforms.len();
+    let help_lines = vec![
+        Line::from(Span::styled(
+            format!(
+                "{} selected  [Tab] Switch  [s] Save",
+                selected_count
+            ),
+            Style::default().fg(text_secondary()),
+        )),
+        Line::from(Span::styled(
+            "[Enter/Space] Toggle  [Esc] Cancel",
+            Style::default().fg(text_secondary()),
+        )),
+    ];
+    let help = Paragraph::new(help_lines);
+    frame.render_widget(help, chunks[2]);
 }
