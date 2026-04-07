@@ -1,4 +1,4 @@
-use dealve_core::models::{Deal, GameInfo, Platform, PriceHistoryPoint, Region};
+use dealve_core::models::{Deal, GameInfo, Platform, PlatformFilter, PlatformGroup, PriceHistoryPoint, Region};
 use ratatui::widgets::{ListState, TableState};
 use std::collections::{HashMap, HashSet};
 
@@ -39,6 +39,7 @@ pub enum Popup {
     Keybinds,
     Platform,
     PriceFilter,
+    GroupEditor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -231,6 +232,7 @@ pub struct OptionsState {
     pub theme_list_index: usize,
     pub default_platform: Platform,
     pub enabled_platforms: HashSet<Platform>,
+    pub platform_groups: Vec<PlatformGroup>,
     pub region: Region,
     pub deals_page_size: usize,
     pub game_info_delay_ms: u64,
@@ -252,6 +254,7 @@ impl Default for OptionsState {
             theme_list_index: 0,
             default_platform: Platform::All,
             enabled_platforms: enabled,
+            platform_groups: Vec::new(),
             region: Region::default(),
             deals_page_size: 50,
             game_info_delay_ms: 200,
@@ -265,6 +268,7 @@ impl OptionsState {
     pub fn from_config(config: &Config) -> Self {
         let enabled_platforms = config.get_enabled_platforms();
         let default_platform = config.get_default_platform();
+        let platform_groups = config.get_platform_groups();
         let region = config.get_region();
         let default_sort = config.get_default_sort();
         let theme = config.get_theme();
@@ -283,6 +287,7 @@ impl OptionsState {
             theme_list_index: 0,
             default_platform,
             enabled_platforms,
+            platform_groups,
             region,
             deals_page_size: config.deals_page_size,
             game_info_delay_ms: config.game_info_delay_ms,
@@ -296,6 +301,7 @@ impl OptionsState {
         config.update_from_options(
             self.default_platform,
             &self.enabled_platforms,
+            &self.platform_groups,
             self.region,
             self.default_sort,
             self.theme,
@@ -333,6 +339,27 @@ pub struct LoadingState {
     pub deals: bool,
     pub game_info: Option<String>,
     pub price_history: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GroupEditorField {
+    Name,
+    Platforms,
+}
+
+#[derive(Default)]
+pub struct GroupEditorState {
+    pub name: String,
+    pub selected_platforms: HashSet<Platform>,
+    pub field: GroupEditorField,
+    pub platform_index: usize,
+    pub editing_index: Option<usize>,
+}
+
+impl Default for GroupEditorField {
+    fn default() -> Self {
+        GroupEditorField::Name
+    }
 }
 
 pub struct UiState {
@@ -382,7 +409,7 @@ pub struct Model {
     pub sort_state: SortState,
 
     // Platform & Region
-    pub platform_filter: Platform,
+    pub platform_filter: PlatformFilter,
     pub region: Region,
 
     // Pagination
@@ -393,6 +420,9 @@ pub struct Model {
 
     // Options
     pub options: OptionsState,
+
+    // Group editor
+    pub group_editor: GroupEditorState,
 
     // Config
     pub api_key: Option<String>,
@@ -410,7 +440,11 @@ impl Model {
     pub fn new(api_key: Option<String>) -> Self {
         let config = Config::load();
         let options = OptionsState::from_config(&config);
-        let platform_filter = options.default_platform;
+        let platform_filter = if options.default_platform == Platform::All {
+            PlatformFilter::All
+        } else {
+            PlatformFilter::Single(options.default_platform)
+        };
         let region = options.region;
         let sort_state = options.default_sort;
         crate::view::styles::set_active_theme(options.theme);
@@ -429,6 +463,7 @@ impl Model {
             pagination: PaginationState::default(),
             loading: LoadingState::default(),
             options,
+            group_editor: GroupEditorState::default(),
             api_key,
             deals_page_size: config.deals_page_size,
             game_info_delay_ms: config.game_info_delay_ms,
@@ -458,12 +493,12 @@ impl Model {
 
     // Query methods
     pub fn filtered_deals(&self) -> Vec<&Deal> {
-        let mut deals: Vec<&Deal> = match self.platform_filter.shop_id() {
+        let mut deals: Vec<&Deal> = match self.platform_filter.shop_id_set() {
             None => self.deals.iter().collect(),
-            Some(shop_id) => self
+            Some(shop_ids) => self
                 .deals
                 .iter()
-                .filter(|deal| deal.shop.id == shop_id.to_string())
+                .filter(|deal| shop_ids.contains(&deal.shop.id))
                 .collect(),
         };
 
@@ -507,12 +542,28 @@ impl Model {
         self.price_history_cache.get(&deal.id)
     }
 
-    pub fn enabled_platforms(&self) -> Vec<Platform> {
-        Platform::ALL
-            .iter()
-            .copied()
-            .filter(|p| self.options.enabled_platforms.contains(p))
-            .collect()
+    /// Returns all selectable platform filters: "All", groups, then individual enabled platforms
+    pub fn selectable_filters(&self) -> Vec<PlatformFilter> {
+        let mut filters = Vec::new();
+
+        // "All Platforms" is always first
+        if self.options.enabled_platforms.contains(&Platform::All) {
+            filters.push(PlatformFilter::All);
+        }
+
+        // Platform groups
+        for group in &self.options.platform_groups {
+            filters.push(PlatformFilter::Group(group.clone()));
+        }
+
+        // Individual enabled platforms (excluding All)
+        for &p in Platform::ALL.iter() {
+            if p != Platform::All && self.options.enabled_platforms.contains(&p) {
+                filters.push(PlatformFilter::Single(p));
+            }
+        }
+
+        filters
     }
 
     pub fn should_load_more(&self) -> bool {

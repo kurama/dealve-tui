@@ -32,6 +32,7 @@ pub fn view(frame: &mut Frame, model: &mut Model) {
         Popup::Keybinds => popups::render_keybinds_popup(frame),
         Popup::Platform => popups::render_platform_popup(frame, model),
         Popup::PriceFilter => popups::render_price_filter_popup(frame, model),
+        Popup::GroupEditor => popups::render_group_editor_popup(frame, model),
     }
 }
 

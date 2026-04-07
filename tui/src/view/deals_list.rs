@@ -25,7 +25,7 @@ pub fn render_deals_list(frame: &mut Frame, model: &mut Model, area: Rect, dimme
         text_primary()
     };
 
-    let title_text = format!("Deals [{}]", model.platform_filter.name());
+    let title_text = format!("Deals [{}]", &model.platform_filter.name());
     let title = build_title(&title_text, border_color, title_color);
 
     let status_line = build_status_line(model, dimmed);

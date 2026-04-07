@@ -2,7 +2,7 @@ use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
 use crate::message::Message;
-use crate::model::{Model, Popup};
+use crate::model::{Model, OptionsTab, Popup};
 
 pub fn handle_event(model: &Model, poll_duration: std::time::Duration) -> Result<Option<Message>> {
     if !event::poll(poll_duration)? {
@@ -19,9 +19,10 @@ pub fn handle_event(model: &Model, poll_duration: std::time::Duration) -> Result
 fn handle_key(model: &Model, code: KeyCode) -> Option<Message> {
     match model.ui.popup {
         Popup::Platform => handle_platform_key(code),
-        Popup::Options => handle_options_key(code),
+        Popup::Options => handle_options_key(model, code),
         Popup::Keybinds => handle_keybinds_key(code),
         Popup::PriceFilter => handle_price_filter_key(code),
+        Popup::GroupEditor => handle_group_editor_key(model, code),
         Popup::None if model.ui.show_menu => handle_menu_key(code),
         Popup::None if model.filter.active => handle_filter_key(code),
         Popup::None => handle_main_key(code),
@@ -38,7 +39,7 @@ fn handle_platform_key(code: KeyCode) -> Option<Message> {
     }
 }
 
-fn handle_options_key(code: KeyCode) -> Option<Message> {
+fn handle_options_key(model: &Model, code: KeyCode) -> Option<Message> {
     match code {
         KeyCode::Esc => Some(Message::ClosePopup),
         KeyCode::Tab | KeyCode::Right => Some(Message::OptionsNextTab),
@@ -46,8 +47,41 @@ fn handle_options_key(code: KeyCode) -> Option<Message> {
         KeyCode::Down | KeyCode::Char('j') => Some(Message::OptionsNextItem),
         KeyCode::Up | KeyCode::Char('k') => Some(Message::OptionsPrevItem),
         KeyCode::Char('s') => Some(Message::OptionsToggleSortDirection),
+        KeyCode::Char('d') => {
+            // Delete group if on a group row in Platforms tab
+            if let Some(OptionsTab::Platforms) = OptionsTab::ALL.get(model.options.current_tab) {
+                let idx = model.options.platform_list_index;
+                let groups_len = model.options.platform_groups.len();
+                if idx >= 1 && idx <= groups_len {
+                    return Some(Message::DeleteGroup(idx - 1));
+                }
+            }
+            None
+        }
         KeyCode::Enter | KeyCode::Char(' ') => Some(Message::OptionsToggleItem),
         _ => None,
+    }
+}
+
+fn handle_group_editor_key(model: &Model, code: KeyCode) -> Option<Message> {
+    match code {
+        KeyCode::Esc => Some(Message::GroupEditorCancel),
+        KeyCode::Tab => Some(Message::GroupEditorSwitchField),
+        _ => match model.group_editor.field {
+            crate::model::GroupEditorField::Name => match code {
+                KeyCode::Backspace => Some(Message::GroupEditorPop),
+                KeyCode::Enter => Some(Message::GroupEditorSwitchField),
+                KeyCode::Char(c) => Some(Message::GroupEditorPush(c)),
+                _ => None,
+            },
+            crate::model::GroupEditorField::Platforms => match code {
+                KeyCode::Down | KeyCode::Char('j') => Some(Message::GroupEditorNext),
+                KeyCode::Up | KeyCode::Char('k') => Some(Message::GroupEditorPrev),
+                KeyCode::Enter | KeyCode::Char(' ') => Some(Message::GroupEditorToggle),
+                KeyCode::Char('s') => Some(Message::GroupEditorSave),
+                _ => None,
+            },
+        },
     }
 }
 

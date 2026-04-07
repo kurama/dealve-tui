@@ -1,4 +1,4 @@
-use dealve_core::models::Platform;
+use dealve_core::models::{Platform, PlatformFilter, PlatformGroup};
 
 use crate::message::Message;
 use crate::model::{MenuItem, Model, OptionsTab, Popup, SortCriteria};
@@ -287,26 +287,26 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
 
         // Platform popup
         Message::OpenPlatformPopup => {
-            let enabled = model.enabled_platforms();
-            model.ui.platform_popup_index = enabled
+            let filters = model.selectable_filters();
+            model.ui.platform_popup_index = filters
                 .iter()
-                .position(|&p| p == model.platform_filter)
+                .position(|f| *f == model.platform_filter)
                 .unwrap_or(0);
             model.ui.popup = Popup::Platform;
             UpdateResult::none()
         }
         Message::PlatformPopupNext => {
-            let enabled = model.enabled_platforms();
-            if !enabled.is_empty() {
-                model.ui.platform_popup_index = (model.ui.platform_popup_index + 1) % enabled.len();
+            let filters = model.selectable_filters();
+            if !filters.is_empty() {
+                model.ui.platform_popup_index = (model.ui.platform_popup_index + 1) % filters.len();
             }
             UpdateResult::none()
         }
         Message::PlatformPopupPrev => {
-            let enabled = model.enabled_platforms();
-            if !enabled.is_empty() {
+            let filters = model.selectable_filters();
+            if !filters.is_empty() {
                 if model.ui.platform_popup_index == 0 {
-                    model.ui.platform_popup_index = enabled.len() - 1;
+                    model.ui.platform_popup_index = filters.len() - 1;
                 } else {
                     model.ui.platform_popup_index -= 1;
                 }
@@ -314,10 +314,10 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
             UpdateResult::none()
         }
         Message::PlatformPopupSelect => {
-            let enabled = model.enabled_platforms();
-            if let Some(&platform) = enabled.get(model.ui.platform_popup_index) {
-                let changed = model.platform_filter != platform;
-                model.platform_filter = platform;
+            let filters = model.selectable_filters();
+            if let Some(filter) = filters.get(model.ui.platform_popup_index) {
+                let changed = model.platform_filter != *filter;
+                model.platform_filter = filter.clone();
                 model.ui.popup = Popup::None;
                 if changed {
                     model.select(Some(0));
@@ -404,7 +404,8 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                         % dealve_core::models::Region::ALL.len();
                 }
                 OptionsTab::Platforms => {
-                    let total_items = 1 + Model::platforms_without_all().len();
+                    // 1 (default) + groups count + 1 (separator/"+ New Group") + platforms count
+                    let total_items = 1 + model.options.platform_groups.len() + 1 + Model::platforms_without_all().len();
                     model.options.platform_list_index =
                         (model.options.platform_list_index + 1) % total_items;
                 }
@@ -429,7 +430,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     }
                 }
                 OptionsTab::Platforms => {
-                    let total_items = 1 + Model::platforms_without_all().len();
+                    let total_items = 1 + model.options.platform_groups.len() + 1 + Model::platforms_without_all().len();
                     if model.options.platform_list_index == 0 {
                         model.options.platform_list_index = total_items - 1;
                     } else {
@@ -469,11 +470,21 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     model.options.save_to_config();
                 }
                 OptionsTab::Platforms => {
-                    if model.options.platform_list_index == 0 {
+                    let groups_len = model.options.platform_groups.len();
+                    let idx = model.options.platform_list_index;
+                    if idx == 0 {
+                        // Default platform
                         cycle_default_platform(model);
+                    } else if idx <= groups_len {
+                        // Edit existing group
+                        return UpdateResult::with_msg(Message::EditGroup(idx - 1));
+                    } else if idx == groups_len + 1 {
+                        // "+ New Group"
+                        return UpdateResult::with_msg(Message::OpenGroupEditor);
                     } else {
+                        // Individual platform checkbox
+                        let platform_idx = idx - groups_len - 2;
                         let platforms = Model::platforms_without_all();
-                        let platform_idx = model.options.platform_list_index - 1;
                         if let Some(&platform) = platforms.get(platform_idx) {
                             if model.options.enabled_platforms.contains(&platform) {
                                 model.options.enabled_platforms.remove(&platform);
@@ -538,6 +549,117 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     model.options.default_sort.direction.toggle();
                 model.options.save_to_config();
             }
+            UpdateResult::none()
+        }
+
+        // Group editor
+        Message::OpenGroupEditor => {
+            model.group_editor = crate::model::GroupEditorState::default();
+            model.ui.popup = Popup::GroupEditor;
+            UpdateResult::none()
+        }
+        Message::EditGroup(idx) => {
+            if let Some(group) = model.options.platform_groups.get(idx) {
+                model.group_editor.name = group.name.clone();
+                model.group_editor.selected_platforms =
+                    group.platforms.iter().copied().collect();
+                model.group_editor.field = crate::model::GroupEditorField::Name;
+                model.group_editor.platform_index = 0;
+                model.group_editor.editing_index = Some(idx);
+                model.ui.popup = Popup::GroupEditor;
+            }
+            UpdateResult::none()
+        }
+        Message::DeleteGroup(idx) => {
+            if idx < model.options.platform_groups.len() {
+                model.options.platform_groups.remove(idx);
+                model.options.save_to_config();
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorSwitchField => {
+            model.group_editor.field = match model.group_editor.field {
+                crate::model::GroupEditorField::Name => crate::model::GroupEditorField::Platforms,
+                crate::model::GroupEditorField::Platforms => crate::model::GroupEditorField::Name,
+            };
+            UpdateResult::none()
+        }
+        Message::GroupEditorPush(c) => {
+            if model.group_editor.field == crate::model::GroupEditorField::Name
+                && model.group_editor.name.len() < 20
+            {
+                model.group_editor.name.push(c);
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorPop => {
+            if model.group_editor.field == crate::model::GroupEditorField::Name {
+                model.group_editor.name.pop();
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorNext => {
+            if model.group_editor.field == crate::model::GroupEditorField::Platforms {
+                let platforms = Model::platforms_without_all();
+                if !platforms.is_empty() {
+                    model.group_editor.platform_index =
+                        (model.group_editor.platform_index + 1) % platforms.len();
+                }
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorPrev => {
+            if model.group_editor.field == crate::model::GroupEditorField::Platforms {
+                let platforms = Model::platforms_without_all();
+                if !platforms.is_empty() {
+                    if model.group_editor.platform_index == 0 {
+                        model.group_editor.platform_index = platforms.len() - 1;
+                    } else {
+                        model.group_editor.platform_index -= 1;
+                    }
+                }
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorToggle => {
+            if model.group_editor.field == crate::model::GroupEditorField::Platforms {
+                let platforms = Model::platforms_without_all();
+                if let Some(&platform) = platforms.get(model.group_editor.platform_index) {
+                    if model.group_editor.selected_platforms.contains(&platform) {
+                        model.group_editor.selected_platforms.remove(&platform);
+                    } else {
+                        model.group_editor.selected_platforms.insert(platform);
+                    }
+                }
+            }
+            UpdateResult::none()
+        }
+        Message::GroupEditorSave => {
+            let name = model.group_editor.name.trim().to_string();
+            if !name.is_empty() && !model.group_editor.selected_platforms.is_empty() {
+                let platforms: Vec<Platform> = Platform::ALL
+                    .iter()
+                    .copied()
+                    .filter(|p| model.group_editor.selected_platforms.contains(p))
+                    .collect();
+                let group = PlatformGroup {
+                    name,
+                    platforms,
+                };
+                if let Some(idx) = model.group_editor.editing_index {
+                    if idx < model.options.platform_groups.len() {
+                        model.options.platform_groups[idx] = group;
+                    }
+                } else {
+                    model.options.platform_groups.push(group);
+                }
+                model.options.save_to_config();
+            }
+            model.ui.popup = Popup::Options;
+            UpdateResult::none()
+        }
+        Message::GroupEditorCancel => {
+            model.ui.popup = Popup::Options;
             UpdateResult::none()
         }
 
@@ -614,7 +736,11 @@ fn cycle_default_platform(model: &mut Model) {
         let next_platform = Platform::ALL[next_idx];
         if model.options.enabled_platforms.contains(&next_platform) {
             model.options.default_platform = next_platform;
-            model.platform_filter = next_platform;
+            model.platform_filter = if next_platform == Platform::All {
+                PlatformFilter::All
+            } else {
+                PlatformFilter::Single(next_platform)
+            };
             return;
         }
     }
