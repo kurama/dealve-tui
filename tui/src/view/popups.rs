@@ -240,7 +240,7 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
     let default_line = Line::from(vec![
         Span::styled("Default: ", Style::default().fg(primary_light())),
         Span::styled(
-            format!("{} ", model.options.default_platform.name()),
+            format!("{} ", &model.options.default_platform.name()),
             default_style,
         ),
         if is_default_selected {
@@ -289,10 +289,7 @@ fn render_platforms_tab(frame: &mut Frame, model: &Model, area: Rect) {
     } else {
         Style::default().fg(text_secondary())
     };
-    list_lines.push(Line::from(Span::styled(
-        " + New Group",
-        new_group_style,
-    )));
+    list_lines.push(Line::from(Span::styled(" + New Group", new_group_style)));
 
     // Separator
     list_lines.push(Line::from(Span::styled(
@@ -770,10 +767,7 @@ pub fn render_group_editor_popup(frame: &mut Frame, model: &Model) {
     let cursor = if name_active { "▋" } else { "" };
     let name_line = Line::from(vec![
         Span::styled("Name: ", Style::default().fg(primary_light())),
-        Span::styled(
-            format!("{}{}", model.group_editor.name, cursor),
-            name_style,
-        ),
+        Span::styled(format!("{}{}", model.group_editor.name, cursor), name_style),
     ]);
     frame.render_widget(Paragraph::new(name_line), chunks[0]);
 
@@ -831,10 +825,7 @@ pub fn render_group_editor_popup(frame: &mut Frame, model: &Model) {
     let selected_count = model.group_editor.selected_platforms.len();
     let help_lines = vec![
         Line::from(Span::styled(
-            format!(
-                "{} selected  [Tab] Switch  [s] Save",
-                selected_count
-            ),
+            format!("{} selected  [Tab] Switch  [s] Save", selected_count),
             Style::default().fg(text_secondary()),
         )),
         Line::from(Span::styled(

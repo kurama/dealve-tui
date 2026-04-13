@@ -702,10 +702,8 @@ pub async fn run_onboarding(
                             _ => {}
                         },
                         OnboardingStep::ApiKeyEntry => match key.code {
-                            KeyCode::Enter => {
-                                if !state.api_key_input.is_empty() {
-                                    state.step = OnboardingStep::Validating;
-                                }
+                            KeyCode::Enter if !state.api_key_input.is_empty() => {
+                                state.step = OnboardingStep::Validating;
                             }
                             KeyCode::Char('t') => {
                                 state.key_hidden = !state.key_hidden;
@@ -713,11 +711,9 @@ pub async fn run_onboarding(
                             KeyCode::Backspace => {
                                 state.api_key_input.pop();
                             }
-                            KeyCode::Char(c) => {
-                                // Allow alphanumeric and dashes (UUID format)
-                                if c.is_alphanumeric() || c == '-' {
-                                    state.api_key_input.push(c);
-                                }
+                            // Allow alphanumeric and dashes (UUID format)
+                            KeyCode::Char(c) if c.is_alphanumeric() || c == '-' => {
+                                state.api_key_input.push(c);
                             }
                             KeyCode::Esc => {
                                 state.step = OnboardingStep::Instructions;

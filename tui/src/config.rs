@@ -1,6 +1,6 @@
 use crate::model::{SortCriteria, SortDirection, SortState};
 use crate::view::styles::Theme;
-use dealve_core::models::{Platform, PlatformGroup, Region};
+use dealve_core::models::{Platform, PlatformFilter, PlatformGroup, Region};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -29,7 +29,11 @@ impl ConfigPlatformGroup {
     pub fn from_platform_group(group: &PlatformGroup) -> Self {
         ConfigPlatformGroup {
             name: group.name.clone(),
-            platforms: group.platforms.iter().map(|p| p.name().to_string()).collect(),
+            platforms: group
+                .platforms
+                .iter()
+                .map(|p| p.name().to_string())
+                .collect(),
         }
     }
 }
@@ -143,13 +147,25 @@ impl Config {
         Ok(())
     }
 
-    /// Convert default_platform string to Platform enum
-    pub fn get_default_platform(&self) -> Platform {
+    /// Convert default_platform string to PlatformFilter
+    /// Resolves against group names first, then platform names
+    pub fn get_default_platform(&self) -> PlatformFilter {
+        if self.default_platform == "All Platforms" || self.default_platform == "All" {
+            return PlatformFilter::All;
+        }
+        // Check groups first
+        for group_cfg in &self.platform_groups {
+            if group_cfg.name == self.default_platform {
+                return PlatformFilter::Group(group_cfg.to_platform_group());
+            }
+        }
+        // Then individual platforms
         Platform::ALL
             .iter()
             .find(|p| p.name() == self.default_platform)
             .copied()
-            .unwrap_or(Platform::All)
+            .map(PlatformFilter::Single)
+            .unwrap_or(PlatformFilter::All)
     }
 
     /// Convert enabled_platforms strings to Platform HashSet
@@ -181,21 +197,21 @@ impl Config {
     /// Update from OptionsState
     pub fn update_from_options(
         &mut self,
-        default_platform: Platform,
+        default_platform: &PlatformFilter,
         enabled_platforms: &HashSet<Platform>,
         platform_groups: &[PlatformGroup],
         region: Region,
         default_sort: SortState,
         theme: Theme,
     ) {
-        self.default_platform = default_platform.name().to_string();
+        self.default_platform = default_platform.name();
         self.enabled_platforms = enabled_platforms
             .iter()
             .map(|p| p.name().to_string())
             .collect();
         self.platform_groups = platform_groups
             .iter()
-            .map(|g| ConfigPlatformGroup::from_platform_group(g))
+            .map(ConfigPlatformGroup::from_platform_group)
             .collect();
         self.region = region.code().to_string();
         self.default_sort_criteria = default_sort.criteria.name().to_string();

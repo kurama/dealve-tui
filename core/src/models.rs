@@ -525,8 +525,9 @@ impl PlatformGroup {
 }
 
 /// Active platform filter: all platforms, a single platform, or a custom group
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum PlatformFilter {
+    #[default]
     All,
     Single(Platform),
     Group(PlatformGroup),
@@ -569,12 +570,6 @@ impl PlatformFilter {
                 }
             }
         }
-    }
-}
-
-impl Default for PlatformFilter {
-    fn default() -> Self {
-        PlatformFilter::All
     }
 }
 

@@ -1,4 +1,6 @@
-use dealve_core::models::{Deal, GameInfo, Platform, PlatformFilter, PlatformGroup, PriceHistoryPoint, Region};
+use dealve_core::models::{
+    Deal, GameInfo, Platform, PlatformFilter, PlatformGroup, PriceHistoryPoint, Region,
+};
 use ratatui::widgets::{ListState, TableState};
 use std::collections::{HashMap, HashSet};
 
@@ -230,7 +232,7 @@ pub struct OptionsState {
     pub region_list_index: usize,
     pub advanced_list_index: usize,
     pub theme_list_index: usize,
-    pub default_platform: Platform,
+    pub default_platform: PlatformFilter,
     pub enabled_platforms: HashSet<Platform>,
     pub platform_groups: Vec<PlatformGroup>,
     pub region: Region,
@@ -252,7 +254,7 @@ impl Default for OptionsState {
             region_list_index: 0,
             advanced_list_index: 0,
             theme_list_index: 0,
-            default_platform: Platform::All,
+            default_platform: PlatformFilter::All,
             enabled_platforms: enabled,
             platform_groups: Vec::new(),
             region: Region::default(),
@@ -267,17 +269,11 @@ impl Default for OptionsState {
 impl OptionsState {
     pub fn from_config(config: &Config) -> Self {
         let enabled_platforms = config.get_enabled_platforms();
-        let default_platform = config.get_default_platform();
         let platform_groups = config.get_platform_groups();
+        let default_platform = config.get_default_platform();
         let region = config.get_region();
         let default_sort = config.get_default_sort();
         let theme = config.get_theme();
-
-        let default_platform = if enabled_platforms.contains(&default_platform) {
-            default_platform
-        } else {
-            Platform::All
-        };
 
         Self {
             current_tab: 0,
@@ -299,7 +295,7 @@ impl OptionsState {
     pub fn save_to_config(&self) {
         let mut config = Config::load();
         config.update_from_options(
-            self.default_platform,
+            &self.default_platform,
             &self.enabled_platforms,
             &self.platform_groups,
             self.region,
@@ -341,8 +337,9 @@ pub struct LoadingState {
     pub price_history: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GroupEditorField {
+    #[default]
     Name,
     Platforms,
 }
@@ -354,12 +351,6 @@ pub struct GroupEditorState {
     pub field: GroupEditorField,
     pub platform_index: usize,
     pub editing_index: Option<usize>,
-}
-
-impl Default for GroupEditorField {
-    fn default() -> Self {
-        GroupEditorField::Name
-    }
 }
 
 pub struct UiState {
@@ -440,11 +431,7 @@ impl Model {
     pub fn new(api_key: Option<String>) -> Self {
         let config = Config::load();
         let options = OptionsState::from_config(&config);
-        let platform_filter = if options.default_platform == Platform::All {
-            PlatformFilter::All
-        } else {
-            PlatformFilter::Single(options.default_platform)
-        };
+        let platform_filter = options.default_platform.clone();
         let region = options.region;
         let sort_state = options.default_sort;
         crate::view::styles::set_active_theme(options.theme);
