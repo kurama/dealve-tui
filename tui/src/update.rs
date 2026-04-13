@@ -1,4 +1,4 @@
-use dealve_core::models::{Platform, PlatformFilter, PlatformGroup};
+use dealve_core::models::{Platform, PlatformGroup};
 
 use crate::message::Message;
 use crate::model::{MenuItem, Model, OptionsTab, Popup, SortCriteria};
@@ -405,7 +405,10 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                 }
                 OptionsTab::Platforms => {
                     // 1 (default) + groups count + 1 (separator/"+ New Group") + platforms count
-                    let total_items = 1 + model.options.platform_groups.len() + 1 + Model::platforms_without_all().len();
+                    let total_items = 1
+                        + model.options.platform_groups.len()
+                        + 1
+                        + Model::platforms_without_all().len();
                     model.options.platform_list_index =
                         (model.options.platform_list_index + 1) % total_items;
                 }
@@ -430,7 +433,10 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     }
                 }
                 OptionsTab::Platforms => {
-                    let total_items = 1 + model.options.platform_groups.len() + 1 + Model::platforms_without_all().len();
+                    let total_items = 1
+                        + model.options.platform_groups.len()
+                        + 1
+                        + Model::platforms_without_all().len();
                     if model.options.platform_list_index == 0 {
                         model.options.platform_list_index = total_items - 1;
                     } else {
@@ -561,8 +567,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
         Message::EditGroup(idx) => {
             if let Some(group) = model.options.platform_groups.get(idx) {
                 model.group_editor.name = group.name.clone();
-                model.group_editor.selected_platforms =
-                    group.platforms.iter().copied().collect();
+                model.group_editor.selected_platforms = group.platforms.iter().copied().collect();
                 model.group_editor.field = crate::model::GroupEditorField::Name;
                 model.group_editor.platform_index = 0;
                 model.group_editor.editing_index = Some(idx);
@@ -642,10 +647,7 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
                     .copied()
                     .filter(|p| model.group_editor.selected_platforms.contains(p))
                     .collect();
-                let group = PlatformGroup {
-                    name,
-                    platforms,
-                };
+                let group = PlatformGroup { name, platforms };
                 if let Some(idx) = model.group_editor.editing_index {
                     if idx < model.options.platform_groups.len() {
                         model.options.platform_groups[idx] = group;
@@ -725,23 +727,15 @@ pub fn update(model: &mut Model, msg: Message) -> UpdateResult {
 }
 
 fn cycle_default_platform(model: &mut Model) {
-    let current_idx = Platform::ALL
-        .iter()
-        .position(|&p| p == model.options.default_platform)
-        .unwrap_or(0);
-
-    let len = Platform::ALL.len();
-    for i in 1..=len {
-        let next_idx = (current_idx + i) % len;
-        let next_platform = Platform::ALL[next_idx];
-        if model.options.enabled_platforms.contains(&next_platform) {
-            model.options.default_platform = next_platform;
-            model.platform_filter = if next_platform == Platform::All {
-                PlatformFilter::All
-            } else {
-                PlatformFilter::Single(next_platform)
-            };
-            return;
-        }
+    let filters = model.selectable_filters();
+    if filters.is_empty() {
+        return;
     }
+    let current_idx = filters
+        .iter()
+        .position(|f| *f == model.options.default_platform)
+        .unwrap_or(0);
+    let next_idx = (current_idx + 1) % filters.len();
+    model.options.default_platform = filters[next_idx].clone();
+    model.platform_filter = filters[next_idx].clone();
 }
