@@ -636,3 +636,87 @@ impl Default for Price {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn region_from_code_accepts_current_and_legacy_codes() {
+        assert_eq!(Region::from_code("US"), Some(Region::US));
+        assert_eq!(Region::from_code("GB"), Some(Region::GB));
+        assert_eq!(Region::from_code("EU1"), Some(Region::FR));
+        assert_eq!(Region::from_code("EU2"), Some(Region::PL));
+        assert_eq!(Region::from_code("UK"), Some(Region::GB));
+        assert_eq!(Region::from_code("XX"), None);
+    }
+
+    #[test]
+    fn region_metadata_matches_expected_groupings() {
+        assert_eq!(Region::default(), Region::FR);
+        assert_eq!(Region::FR.code(), "FR");
+        assert_eq!(Region::FR.name(), "France");
+        assert_eq!(Region::FR.continent(), "Europe");
+        assert_eq!(Region::US.continent(), "Americas");
+        assert_eq!(Region::JP.continent(), "Asia-Pacific");
+        assert_eq!(Region::ZA.continent(), "Middle East & Africa");
+    }
+
+    #[test]
+    fn all_regions_have_unique_codes() {
+        let codes: HashSet<&str> = Region::ALL.iter().map(Region::code).collect();
+
+        assert_eq!(codes.len(), Region::ALL.len());
+        assert!(codes.contains("FR"));
+        assert!(codes.contains("US"));
+        assert!(codes.contains("JP"));
+    }
+
+    #[test]
+    fn platform_shop_ids_match_api_values() {
+        assert_eq!(Platform::All.shop_id(), None);
+        assert_eq!(Platform::Steam.shop_id(), Some(61));
+        assert_eq!(Platform::Gog.shop_id(), Some(35));
+        assert_eq!(Platform::EpicGames.shop_id(), Some(16));
+    }
+
+    #[test]
+    fn platform_group_shop_ids_skip_all_platforms() {
+        let group = PlatformGroup {
+            name: "PC stores".to_string(),
+            platforms: vec![Platform::All, Platform::Steam, Platform::Gog],
+        };
+
+        assert_eq!(group.shop_ids_param(), Some("61,35".to_string()));
+        assert_eq!(group.display_name(), "PC stores");
+    }
+
+    #[test]
+    fn platform_filter_returns_api_params_and_names() {
+        let group = PlatformGroup {
+            name: "Favorites".to_string(),
+            platforms: vec![Platform::Steam, Platform::EpicGames],
+        };
+
+        assert_eq!(PlatformFilter::All.shop_ids_param(), None);
+        assert_eq!(
+            PlatformFilter::Single(Platform::Steam).shop_ids_param(),
+            Some("61".to_string())
+        );
+        assert_eq!(
+            PlatformFilter::Group(group.clone()).shop_ids_param(),
+            Some("61,16".to_string())
+        );
+        assert_eq!(PlatformFilter::Group(group).name(), "Favorites");
+    }
+
+    #[test]
+    fn default_price_uses_usd_zero_values() {
+        let price = Price::default();
+
+        assert_eq!(price.amount, 0.0);
+        assert_eq!(price.currency, "USD");
+        assert_eq!(price.discount, 0);
+    }
+}
