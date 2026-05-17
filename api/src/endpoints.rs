@@ -360,3 +360,51 @@ fn select_best_deal(deals: Vec<DealInfo>) -> Option<DealInfo> {
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{HistoryPrice, PriceInfo, ShopInfo};
+
+    fn deal(price: f64, cut: u8) -> DealInfo {
+        DealInfo {
+            shop: ShopInfo {
+                id: 61,
+                name: "Steam".to_string(),
+            },
+            price: PriceInfo {
+                amount: price,
+                currency: "USD".to_string(),
+            },
+            regular: PriceInfo {
+                amount: 20.0,
+                currency: "USD".to_string(),
+            },
+            cut,
+            url: format!("https://example.com/{price}-{cut}"),
+            history_low: Some(HistoryPrice { amount: price }),
+        }
+    }
+
+    #[test]
+    fn select_best_deal_returns_none_for_empty_list() {
+        assert!(select_best_deal(Vec::new()).is_none());
+    }
+
+    #[test]
+    fn select_best_deal_prefers_lowest_price() {
+        let best =
+            select_best_deal(vec![deal(14.99, 40), deal(9.99, 20), deal(12.99, 50)]).unwrap();
+
+        assert_eq!(best.price.amount, 9.99);
+        assert_eq!(best.cut, 20);
+    }
+
+    #[test]
+    fn select_best_deal_uses_highest_cut_as_tiebreaker() {
+        let best = select_best_deal(vec![deal(9.99, 10), deal(9.99, 70), deal(9.99, 40)]).unwrap();
+
+        assert_eq!(best.price.amount, 9.99);
+        assert_eq!(best.cut, 70);
+    }
+}

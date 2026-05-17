@@ -150,3 +150,150 @@ impl PriceHistoryItem {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deal_item_converts_to_core_deal() {
+        let item = DealItem {
+            id: "game-1".to_string(),
+            title: "A Game".to_string(),
+            deal: DealInfo {
+                shop: ShopInfo {
+                    id: 61,
+                    name: "Steam".to_string(),
+                },
+                price: PriceInfo {
+                    amount: 9.99,
+                    currency: "USD".to_string(),
+                },
+                regular: PriceInfo {
+                    amount: 19.99,
+                    currency: "USD".to_string(),
+                },
+                cut: 50,
+                url: "https://example.com/deal".to_string(),
+                history_low: Some(HistoryPrice { amount: 7.49 }),
+            },
+        };
+
+        let deal = dealve_core::models::Deal::from(item);
+
+        assert_eq!(deal.id, "game-1");
+        assert_eq!(deal.title, "A Game");
+        assert_eq!(deal.shop.id, "61");
+        assert_eq!(deal.shop.name, "Steam");
+        assert_eq!(deal.price.amount, 9.99);
+        assert_eq!(deal.price.currency, "USD");
+        assert_eq!(deal.price.discount, 50);
+        assert_eq!(deal.regular_price, 19.99);
+        assert_eq!(deal.url, "https://example.com/deal");
+        assert_eq!(deal.history_low, Some(7.49));
+    }
+
+    #[test]
+    fn game_info_response_defaults_missing_collections() {
+        let response = GameInfoResponse {
+            id: "game-2".to_string(),
+            title: "Another Game".to_string(),
+            release_date: None,
+            developers: None,
+            publishers: None,
+            tags: None,
+        };
+
+        let info = dealve_core::models::GameInfo::from(response);
+
+        assert_eq!(info.id, "game-2");
+        assert_eq!(info.title, "Another Game");
+        assert_eq!(info.release_date, None);
+        assert!(info.developers.is_empty());
+        assert!(info.publishers.is_empty());
+        assert!(info.tags.is_empty());
+    }
+
+    #[test]
+    fn game_info_response_extracts_company_names() {
+        let response = GameInfoResponse {
+            id: "game-3".to_string(),
+            title: "Named Game".to_string(),
+            release_date: Some("2026-05-17".to_string()),
+            developers: Some(vec![CompanyInfo {
+                name: "Dev Studio".to_string(),
+            }]),
+            publishers: Some(vec![CompanyInfo {
+                name: "Publisher".to_string(),
+            }]),
+            tags: Some(vec!["RPG".to_string(), "Indie".to_string()]),
+        };
+
+        let info = dealve_core::models::GameInfo::from(response);
+
+        assert_eq!(info.release_date, Some("2026-05-17".to_string()));
+        assert_eq!(info.developers, vec!["Dev Studio"]);
+        assert_eq!(info.publishers, vec!["Publisher"]);
+        assert_eq!(info.tags, vec!["RPG", "Indie"]);
+    }
+
+    #[test]
+    fn price_history_item_requires_deal() {
+        let item = PriceHistoryItem {
+            timestamp: "2026-05-17T00:00:00Z".to_string(),
+            shop: ShopInfo {
+                id: 61,
+                name: "Steam".to_string(),
+            },
+            deal: None,
+        };
+
+        assert!(item.to_price_history_point().is_none());
+    }
+
+    #[test]
+    fn price_history_item_converts_valid_timestamp() {
+        let item = PriceHistoryItem {
+            timestamp: "2026-05-17T00:00:00Z".to_string(),
+            shop: ShopInfo {
+                id: 61,
+                name: "Steam".to_string(),
+            },
+            deal: Some(HistoryDeal {
+                price: PriceInfo {
+                    amount: 12.5,
+                    currency: "USD".to_string(),
+                },
+            }),
+        };
+
+        let point = item.to_price_history_point().unwrap();
+
+        assert_eq!(point.timestamp, 1_778_976_000);
+        assert_eq!(point.price, 12.5);
+        assert_eq!(point.shop_name, "Steam");
+    }
+
+    #[test]
+    fn price_history_item_uses_zero_for_malformed_timestamp() {
+        let item = PriceHistoryItem {
+            timestamp: "not-a-date".to_string(),
+            shop: ShopInfo {
+                id: 61,
+                name: "Steam".to_string(),
+            },
+            deal: Some(HistoryDeal {
+                price: PriceInfo {
+                    amount: 12.5,
+                    currency: "USD".to_string(),
+                },
+            }),
+        };
+
+        let point = item.to_price_history_point().unwrap();
+
+        assert_eq!(point.timestamp, 0);
+        assert_eq!(point.price, 12.5);
+        assert_eq!(point.shop_name, "Steam");
+    }
+}
