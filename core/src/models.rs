@@ -54,7 +54,7 @@ pub enum Region {
     TW,
     // Middle East & Africa
     AE,
-    IL,
+    PS,
     SA,
     TR,
     ZA,
@@ -113,7 +113,7 @@ impl Region {
             Region::TW => "Taiwan",
             // Middle East & Africa
             Region::AE => "United Arab Emirates",
-            Region::IL => "Israel",
+            Region::PS => "Palestine",
             Region::SA => "Saudi Arabia",
             Region::TR => "Turkey",
             Region::ZA => "South Africa",
@@ -168,7 +168,7 @@ impl Region {
             Region::TH => "TH",
             Region::TW => "TW",
             Region::AE => "AE",
-            Region::IL => "IL",
+            Region::PS => "PS",
             Region::SA => "SA",
             Region::TR => "TR",
             Region::ZA => "ZA",
@@ -225,7 +225,7 @@ impl Region {
             | Region::TH
             | Region::TW => "Asia-Pacific",
 
-            Region::AE | Region::IL | Region::SA | Region::TR | Region::ZA => {
+            Region::AE | Region::PS | Region::SA | Region::TR | Region::ZA => {
                 "Middle East & Africa"
             }
         }
@@ -283,7 +283,7 @@ impl Region {
         Region::TH,
         // Middle East & Africa
         Region::AE,
-        Region::IL,
+        Region::PS,
         Region::SA,
         Region::ZA,
         Region::TR,
@@ -337,7 +337,7 @@ impl Region {
             "TH" => Some(Region::TH),
             "TW" => Some(Region::TW),
             "AE" => Some(Region::AE),
-            "IL" => Some(Region::IL),
+            "PS" => Some(Region::PS),
             "SA" => Some(Region::SA),
             "TR" => Some(Region::TR),
             "ZA" => Some(Region::ZA),
